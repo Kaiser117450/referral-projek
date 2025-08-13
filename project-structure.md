@@ -132,10 +132,10 @@ JWT_EXPIRES_IN="7d"
 
 
 # AWS
-AWS_ACCESS_KEY_ID="AKIAR5GHQXAG7BNYPL45"
-AWS_SECRET_ACCESS_KEY="0a7IEhr+szFm/AGyHzexkYnDiKJOk7IOazIVNlKr"
-AWS_S3_BUCKET="enakkobucket"
-AWS_REGION="ap-southeast-2"
+AWS_ACCESS_KEY_ID="your_aws_access_key_id_here"
+AWS_SECRET_ACCESS_KEY="your_aws_secret_access_key_here"
+AWS_S3_BUCKET="your_s3_bucket_name_here"
+AWS_REGION="your_aws_region_here"
 
 
 # Third Party Services
