@@ -1,150 +1,73 @@
-# 🏗️ Struktur Proyek Aplikasi Referral Marketing
+# Referral Project - Project Structure
 
-## 📁 Struktur Folder
+## Overview
+This document outlines the complete structure and architecture of the referral system project, including both frontend and backend components, database schema, and deployment infrastructure.
 
+## Project Architecture
+
+### Technology Stack
+- **Frontend**: React + TypeScript + Vite + Tailwind CSS
+- **Backend**: Node.js + Express + TypeScript + Prisma
+- **Database**: PostgreSQL
+- **Authentication**: JWT + Hybrid (Phone + WhatsApp)
+- **File Storage**: AWS S3
+- **Caching**: Redis
+- **Deployment**: Docker + Docker Compose
+
+### Directory Structure
 ```
-referral-project/
-├── 📁 frontend/                 # React Frontend Application
-│   ├── 📁 public/
-│   ├── 📁 src/
-│   │   ├── 📁 components/       # Reusable UI Components
-│   │   ├── 📁 pages/           # Page Components
-│   │   ├── 📁 hooks/           # Custom React Hooks
-│   │   ├── 📁 services/        # API Services
-│   │   ├── 📁 store/           # State Management
-│   │   ├── 📁 types/           # TypeScript Types
-│   │   ├── 📁 utils/           # Utility Functions
-│   │   └── 📁 styles/          # CSS & Styling
-│   ├── package.json
-│   └── README.md
-│
-├── 📁 backend/                  # Node.js Backend Application
-│   ├── 📁 src/
-│   │   ├── 📁 controllers/     # Route Controllers
-│   │   ├── 📁 middleware/      # Express Middleware
-│   │   ├── 📁 models/          # Database Models
-│   │   ├── 📁 routes/          # API Routes
-│   │   ├── 📁 services/        # Business Logic
-│   │   ├── 📁 utils/           # Utility Functions
-│   │   └── 📁 types/           # TypeScript Types
-│   ├── 📁 prisma/              # Database Schema & Migrations
-│   ├── package.json
-│   └── README.md
-│
-├── 📁 shared/                   # Shared Types & Utilities
-│   ├── 📁 types/
-│   └── 📁 constants/
-│
-├── 📁 docs/                     # Documentation
-│   ├── 📁 api/
-│   ├── 📁 database/
-│   └── 📁 deployment/
-│
-├── 📁 scripts/                  # Build & Deployment Scripts
-├── 📁 tests/                    # Test Files
-├── docker-compose.yml           # Docker Configuration
-├── package.json                 # Root Package.json
-└── README.md                    # Project Overview
+referral-projek/
+├── frontend/                 # React frontend application
+├── backend/                  # Node.js backend API
+├── shared/                   # Shared types and constants
+├── docker-compose.yml        # Development environment setup
+├── README.md                 # Project documentation
+└── deployment-infrastructure.md
 ```
 
-## 🎯 Komponen Utama
+## Frontend Structure
 
-### Frontend Components
+### Core Components
+- **App.tsx**: Main application component with routing
+- **Pages**: 
+  - ReferralLandingPage: Public landing page for referrals
+  - ReferrerDashboard: Dashboard for users who refer others
+  - ClaimPage: Page for claiming referral rewards
+  - CashierDashboard: Admin dashboard for managing rewards
 
-#### 1. Authentication Components
-- `LoginForm.tsx` - Form login WhatsApp
-- `PhoneVerification.tsx` - Verifikasi nomor telepon
-- `AuthGuard.tsx` - Route protection
+### State Management
+- **Zustand Store**: `referral.store.ts` for global state management
+- **API Service**: `api.service.ts` for backend communication
 
-#### 2. Referral Components
-- `ReferralDashboard.tsx` - Dashboard utama referrer
-- `ReferralCode.tsx` - Tampilan kode referral
-- `ReferralStats.tsx` - Statistik referral
-- `ShareButton.tsx` - Tombol berbagi referral
+### Styling
+- **Tailwind CSS**: Utility-first CSS framework
+- **Custom CSS**: `index.css` for global styles
 
-#### 3. Reward Components
-- `RewardCatalog.tsx` - Katalog hadiah
-- `PointBalance.tsx` - Saldo poin
-- `MilestoneProgress.tsx` - Progress milestone
-- `RewardHistory.tsx` - Riwayat hadiah
+## Backend Structure
 
-#### 4. Claim Components
-- `ClaimLanding.tsx` - Halaman landing referral
-- `RewardCode.tsx` - Tampilan kode hadiah dengan timer
-- `ClaimSuccess.tsx` - Konfirmasi klaim berhasil
+### API Endpoints
+- **Referral Routes**: `/api/referrals/*`
+- **Cashier Routes**: `/api/cashier/*`
 
-#### 5. Cashier Components
-- `CashierDashboard.tsx` - Dashboard kasir
-- `CodeVerification.tsx` - Verifikasi kode hadiah
-- `TransactionHistory.tsx` - Riwayat transaksi
+### Services
+- **Referral Service**: Core business logic for referrals
+- **Redis Service**: Caching and session management
 
-### Backend Services
+### Database Models
+- **User**: User accounts and referral codes
+- **Referral**: Referral relationships and status
+- **Reward**: Available rewards and categories
+- **RewardCode**: Individual reward codes for redemption
+- **PointTransaction**: Point earning/spending history
 
-#### 1. Authentication Service
-- WhatsApp login & verification
-- JWT token management
-- Session handling
+### Authentication
+- **JWT**: Token-based authentication
+- **Phone Verification**: SMS-based verification
+- **WhatsApp Integration**: Alternative authentication method
 
-#### 2. Referral Service
-- Generate referral codes
-- Track referral status
-- Calculate points
+## Database Schema
 
-#### 3. Reward Service
-- Manage reward catalog
-- Process point redemption
-- Handle seasonal bonuses
-
-#### 4. Notification Service
-- WhatsApp message sending
-- Email notifications
-- Push notifications
-
-#### 5. Analytics Service
-- User behavior tracking
-- Conversion metrics
-- Fraud detection
-
-## 🔧 Konfigurasi Teknis
-
-### Environment Variables
-
-#### Frontend (.env.local)
-```env
-REACT_APP_API_URL=http://localhost:3001/api
-REACT_APP_WHATSAPP_API_KEY=your_key
-REACT_APP_ANALYTICS_ID=your_id
-```
-
-#### Backend (.env)
-```env
-# Server
-PORT=3001
-NODE_ENV=development
-
-# Database
-DATABASE_URL="postgresql://..."
-REDIS_URL="redis://..."
-
-# JWT
-JWT_SECRET="d0e3354659430e38cfa1dea9a35699f287f317b350ae1eafe61d9beae2ca25da"
-JWT_EXPIRES_IN="7d"
-
-
-# AWS
-AWS_ACCESS_KEY_ID="your_aws_access_key_id_here"
-AWS_SECRET_ACCESS_KEY="your_aws_secret_access_key_here"
-AWS_S3_BUCKET="your_s3_bucket_name_here"
-AWS_REGION="your_aws_region_here"
-
-
-# Third Party Services
-SENTRY_DSN="https://679e1d03f311d7e35f924b5c149553fb@o4509826295005184.ingest.de.sentry.io/4509826307981392"
-```
-
-### Database Schema
-
-#### Prisma Schema (prisma/schema.prisma)
+### Prisma Schema (prisma/schema.prisma)
 ```prisma
 generator client {
   provider = "prisma-client-js"
@@ -234,211 +157,188 @@ model PointTransaction {
 
   @@map("point_transactions")
 }
+```
 
+### Enums
+```prisma
 enum UserStatus {
   ACTIVE
+  INACTIVE
   SUSPENDED
-  BANNED
 }
 
 enum ReferralStatus {
   PENDING
-  CLAIMED
-  REDEEMED
+  COMPLETED
   EXPIRED
+  CANCELLED
 }
 
 enum RewardCategory {
-  INSTANT
-  MILESTONE
-  SEASONAL
+  FOOD
+  BEVERAGE
+  DISCOUNT
+  FREE_ITEM
+  OTHER
 }
 
 enum RewardCodeStatus {
   ACTIVE
   USED
   EXPIRED
+  CANCELLED
 }
 
 enum TransactionType {
   EARNED
   SPENT
   BONUS
+  PENALTY
 }
 ```
 
-## 🚀 Deployment Strategy
+## Environment Configuration
 
-### Development Environment
-- Local development dengan hot reload
-- Database lokal dengan Docker
-- Mock WhatsApp API untuk testing
+### Required Environment Variables
+```bash
+# Database
+DATABASE_URL="postgresql://username:password@localhost:5432/referral_db"
 
-### Staging Environment
-- Vercel preview deployments
-- Railway staging database
-- WhatsApp sandbox environment
+# JWT
+JWT_SECRET="your_jwt_secret_here"
+JWT_EXPIRES_IN="7d"
 
-### Production Environment
-- Vercel production deployment
-- Supabase production database
-- WhatsApp Business API production
-- CDN untuk static assets
-- Load balancer untuk backend
+# AWS
+AWS_ACCESS_KEY_ID="your_aws_access_key_id_here"
+AWS_SECRET_ACCESS_KEY="your_aws_secret_access_key_here"
+AWS_S3_BUCKET="your_s3_bucket_name_here"
+AWS_REGION="your_aws_region_here"
 
-## 📱 Mobile Responsiveness
+# Third Party Services
+SENTRY_DSN="your_sentry_dsn_here"
+```
 
-### Breakpoints
-- Mobile: 320px - 768px
-- Tablet: 768px - 1024px
-- Desktop: 1024px+
+## API Endpoints
 
-### Progressive Web App (PWA)
-- Service worker untuk offline functionality
-- App manifest untuk install
-- Push notifications
-- Background sync
+### Referral Endpoints
+- `POST /api/referrals/create` - Create new referral
+- `GET /api/referrals/user/:userId` - Get user's referrals
+- `PUT /api/referrals/:id/status` - Update referral status
+- `GET /api/referrals/:id` - Get referral details
 
-## 🔒 Security Measures
+### Cashier Endpoints
+- `POST /api/cashier/redeem` - Redeem reward code
+- `GET /api/cashier/rewards` - Get available rewards
+- `PUT /api/cashier/rewards/:id` - Update reward status
 
-### API Security
-- Rate limiting
-- CORS configuration
-- Input validation dengan Zod
-- SQL injection prevention
-- XSS protection
+## Development Setup
 
-### Authentication Security
-- JWT token rotation
-- Refresh token mechanism
-- Session timeout
-- Multi-factor authentication (future)
+### Prerequisites
+- Node.js 18+
+- PostgreSQL 14+
+- Redis 6+
+- Docker & Docker Compose
 
-### Data Security
-- Data encryption at rest
-- HTTPS enforcement
-- Secure headers
-- Content Security Policy
+### Local Development
+1. Clone the repository
+2. Copy `.env.example` to `.env` and configure variables
+3. Run `docker-compose up -d` for database and Redis
+4. Install dependencies: `npm install` in both frontend and backend
+5. Run migrations: `npx prisma migrate dev`
+6. Start development servers
 
-## 📊 Performance Optimization
+### Database Migrations
+```bash
+# Create new migration
+npx prisma migrate dev --name migration_name
 
-### Frontend
-- Code splitting dengan React.lazy
-- Image optimization
-- Bundle size optimization
-- Caching strategies
+# Apply migrations
+npx prisma migrate deploy
 
-### Backend
-- Database query optimization
-- Redis caching
-- Connection pooling
+# Reset database (development only)
+npx prisma migrate reset
+```
+
+## Deployment
+
+### Docker Configuration
+- **Frontend**: Multi-stage build with Nginx
+- **Backend**: Node.js runtime with PM2
+- **Database**: PostgreSQL with persistent volumes
+- **Redis**: In-memory caching layer
+
+### Production Considerations
+- Environment-specific configurations
+- SSL/TLS certificates
 - Load balancing
+- Database connection pooling
+- Redis clustering
+- Monitoring and logging
 
-### Monitoring
-- Performance metrics tracking
-- Error tracking dengan Sentry
-- User experience monitoring
-- Real-time analytics
+## Security Features
 
-## 🧪 Testing Strategy
+### Authentication & Authorization
+- JWT token validation
+- Role-based access control
+- Rate limiting
+- Input validation and sanitization
+
+### Data Protection
+- Encrypted database connections
+- Secure file uploads
+- API key management
+- Audit logging
+
+## Testing Strategy
 
 ### Frontend Testing
-- Unit tests dengan Jest
-- Component testing dengan React Testing Library
-- E2E testing dengan Playwright
-- Visual regression testing
+- Unit tests with Jest
+- Component testing with React Testing Library
+- E2E testing with Playwright
 
 ### Backend Testing
-- Unit tests dengan Jest
-- Integration tests
-- API testing dengan Supertest
-- Database testing
+- Unit tests for services
+- Integration tests for API endpoints
+- Database testing with test containers
 
-### Test Coverage
-- Target: 80%+ coverage
-- Critical path testing
-- Edge case scenarios
-- Performance testing
+## Monitoring & Logging
 
-## 📈 Analytics & Tracking
+### Application Monitoring
+- Error tracking with Sentry
+- Performance monitoring
+- Health check endpoints
 
-### User Behavior
-- Page views & navigation
-- Feature usage
-- Conversion funnels
-- User retention
+### Logging
+- Structured logging with Winston
+- Request/response logging
+- Error logging and alerting
 
-### Business Metrics
-- Referral conversion rate
-- Point earning/spending
-- Reward popularity
-- User engagement score
+## Future Enhancements
 
-### Technical Metrics
-- API response times
-- Error rates
-- Database performance
-- System uptime
-
-## 🔄 CI/CD Pipeline
-
-### GitHub Actions Workflow
-1. **Code Quality Check**
-   - Linting (ESLint, Prettier)
-   - Type checking
-   - Security scanning
-
-2. **Testing**
-   - Unit tests
-   - Integration tests
-   - E2E tests
-
-3. **Build & Deploy**
-   - Frontend build & deploy ke Vercel
-   - Backend build & deploy ke Railway
-   - Database migrations
-
-4. **Post-deployment**
-   - Health checks
-   - Performance monitoring
-   - Error tracking setup
-
-## 📚 Documentation
-
-### API Documentation
-- OpenAPI/Swagger specification
-- Postman collection
-- Example requests/responses
-- Error code reference
-
-### User Documentation
-- User guides
-- FAQ
-- Video tutorials
-- Troubleshooting guide
-
-### Developer Documentation
-- Setup guide
-- Architecture overview
-- Contributing guidelines
-- Deployment guide
-
-## 🌟 Future Enhancements
-
-### Phase 2 Features
-- Multi-language support
+### Planned Features
+- Real-time notifications
 - Advanced analytics dashboard
-- A/B testing framework
-- Machine learning recommendations
-
-### Phase 3 Features
-- Mobile app (React Native)
+- Multi-language support
+- Mobile app development
 - Social media integration
-- Advanced gamification
-- AI-powered fraud detection
 
 ### Scalability Improvements
 - Microservices architecture
-- Event-driven architecture
-- Real-time notifications
-- Global CDN deployment
+- Event-driven communication
+- Horizontal scaling
+- CDN integration
+- Database sharding
+
+## Contributing
+
+### Development Guidelines
+- Follow TypeScript best practices
+- Use conventional commit messages
+- Write comprehensive tests
+- Update documentation
+
+### Code Review Process
+- Pull request reviews required
+- Automated testing on CI/CD
+- Security scanning
+- Performance benchmarking
