@@ -23,7 +23,8 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    sourcemap: true,
+    // Disable sourcemaps in production for smaller, faster builds
+    sourcemap: false,
   },
 })
 
