@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Share2, Users, Award, TrendingUp, Copy, CheckCircle } from 'lucide-react';
 import { useReferralStore } from '@/store/referral.store';
 import { apiService } from '@/services/api.service';
-import { DemoReferralStats } from '@/types';
+import { DemoReferralStats, GenerateLinkResponse, PointsResponse } from '@/types';
 
 const ReferrerDashboard: React.FC = () => {
   const { 
@@ -15,9 +15,13 @@ const ReferrerDashboard: React.FC = () => {
   } = useReferralStore();
   
   const [copied, setCopied] = useState(false);
+  const [shareUrl, setShareUrl] = useState<string>('');
+  const [points, setPoints] = useState<PointsResponse | null>(null);
+  const [isGenerating, setIsGenerating] = useState<boolean>(false);
 
   useEffect(() => {
     loadDemoStats();
+    generateLinkAndPoints();
   }, []);
 
   const loadDemoStats = async () => {
@@ -34,7 +38,7 @@ const ReferrerDashboard: React.FC = () => {
 
   const copyReferralCode = async () => {
     try {
-      const referralLink = `${window.location.origin}/ref/${demoReferralCode}`;
+      const referralLink = shareUrl || `${window.location.origin}/ref/${demoReferralCode}`;
       await navigator.clipboard.writeText(referralLink);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -45,7 +49,7 @@ const ReferrerDashboard: React.FC = () => {
 
   const shareReferral = async () => {
     try {
-      const referralLink = `${window.location.origin}/ref/${demoReferralCode}`;
+      const referralLink = shareUrl || `${window.location.origin}/ref/${demoReferralCode}`;
       const shareData = {
         title: 'Join GrowthLoop!',
         text: 'Get free rewards when you join using my referral link!',
@@ -59,6 +63,21 @@ const ReferrerDashboard: React.FC = () => {
       }
     } catch (error) {
       console.error('Failed to share referral:', error);
+    }
+  };
+
+  const generateLinkAndPoints = async () => {
+    try {
+      setIsGenerating(true);
+      const link: GenerateLinkResponse = await apiService.generateLink();
+      setShareUrl(link.shareUrl);
+      const inviterId = link.referralCode; // initial phase: inviterId == referralCode
+      const pts = await apiService.getPoints(inviterId);
+      setPoints(pts);
+    } catch (e) {
+      // non-blocking
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -120,14 +139,14 @@ const ReferrerDashboard: React.FC = () => {
                 Kode Referral Anda
               </h2>
               <div className="bg-gradient-to-r from-primary-500 to-accent-500 p-1 rounded-lg mb-6">
-                <div className="bg-white p-4 rounded-lg">
+                 <div className="bg-white p-4 rounded-lg">
                   <span className="text-3xl font-bold font-mono tracking-wider gradient-text">
-                    {demoReferralCode}
+                    {shareUrl ? shareUrl.split('/').pop() : demoReferralCode}
                   </span>
                 </div>
               </div>
               <p className="text-gray-600 mb-6">
-                Bagikan kode ini kepada teman-teman Anda untuk mendapatkan poin dan hadiah!
+                {shareUrl ? `Bagikan link ini: ${shareUrl}` : 'Bagikan kode ini kepada teman-teman Anda untuk mendapatkan poin dan hadiah!'}
               </p>
               <div className="flex gap-4 justify-center">
                 <button
@@ -143,6 +162,13 @@ const ReferrerDashboard: React.FC = () => {
                 >
                   <Share2 className="w-5 h-5" />
                   Bagikan
+                </button>
+                <button
+                  onClick={generateLinkAndPoints}
+                  className="btn-secondary flex items-center gap-2"
+                  disabled={isGenerating}
+                >
+                  {isGenerating ? 'Membuat...' : 'Generate Link Baru'}
                 </button>
               </div>
             </div>
@@ -169,9 +195,31 @@ const ReferrerDashboard: React.FC = () => {
                   <span className="text-gray-700">Total Poin</span>
                 </div>
                 <span className="text-2xl font-bold text-secondary-600">
-                  {demoStats?.totalPoints || 0}
+                  {points?.points ?? demoStats?.totalPoints ?? 0}
                 </span>
               </div>
+              {points && (
+                <div className="p-4 bg-blue-50 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-sm text-blue-700 font-semibold">Milestone Berikutnya</div>
+                      <div className="text-blue-900">{points.nextMilestone ?? 'Maksimum'}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm text-blue-700 font-semibold">Sisa Poin</div>
+                      <div className="text-blue-900">{points.pointsToNext ?? 0}</div>
+                    </div>
+                  </div>
+                  {points.nextMilestone && (
+                    <div className="mt-3 w-full bg-blue-100 h-2 rounded">
+                      <div
+                        className="bg-blue-500 h-2 rounded"
+                        style={{ width: `${Math.min(100, Math.round((points.points / points.nextMilestone) * 100))}%` }}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                 <div className="flex items-center gap-3">
                   <TrendingUp className="w-6 h-6 text-accent-500" />

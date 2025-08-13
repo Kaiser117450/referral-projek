@@ -73,6 +73,34 @@ export class RedisService {
   }
 
   /**
+   * Get remaining TTL seconds for a timer
+   */
+  async getRemainingTime(code: string): Promise<number> {
+    try {
+      await this.connect();
+      const key = `timer:${code}`;
+      const ttl = await this.client.ttl(key);
+      return ttl < 0 ? 0 : ttl;
+    } catch (error) {
+      console.error('Error getting remaining time from Redis:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Delete a stored timer
+   */
+  async deleteTimer(code: string): Promise<void> {
+    try {
+      await this.connect();
+      const key = `timer:${code}`;
+      await this.client.del(key);
+    } catch (error) {
+      console.error('Error deleting timer from Redis:', error);
+    }
+  }
+
+  /**
    * Delete timer data from Redis
    */
   async deleteTimer(code: string): Promise<void> {

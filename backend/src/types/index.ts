@@ -66,6 +66,19 @@ export interface ClaimRewardResponse {
   reward: RewardData;
   expiresAt: string;
   timerMinutes: number;
+  qrUrl?: string;
+}
+
+export interface GenerateLinkResponse {
+  referralCode: string;
+  shareUrl: string;
+}
+
+export interface PointsResponse {
+  inviterId: string;
+  points: number;
+  nextMilestone?: number;
+  pointsToNext?: number;
 }
 
 // Cashier Types

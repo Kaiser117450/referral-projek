@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { referralService } from '@/services/referral.service';
 import { createSuccessResponse, createErrorResponse } from '@/utils/helpers';
+import { GenerateLinkResponse, PointsResponse } from '@/types';
 
 export class ReferralController {
   /**
@@ -61,6 +62,40 @@ export class ReferralController {
       res.json(createSuccessResponse(claimResult));
     } catch (error) {
       console.error('Error in claimReward:', error);
+      res.status(500).json(createErrorResponse('INTERNAL_ERROR', 'Internal server error'));
+    }
+  }
+
+  /**
+   * POST /api/referral/generate-link
+   * Generate unique referral link
+   */
+  async generateLink(req: Request, res: Response): Promise<void> {
+    try {
+      const referralCode = (Math.random().toString(36).substring(2, 8) + Date.now().toString(36)).toUpperCase().slice(0,6);
+      const shareUrl = `${process.env.PUBLIC_BASE_URL || 'https://contohweb.com'}/${referralCode}`;
+      res.json(createSuccessResponse<GenerateLinkResponse>({ referralCode, shareUrl }));
+    } catch (error) {
+      console.error('Error in generateLink:', error);
+      res.status(500).json(createErrorResponse('INTERNAL_ERROR', 'Internal server error'));
+    }
+  }
+
+  /**
+   * GET /api/referral/points/:inviterId
+   * Get inviter points summary
+   */
+  async getPoints(req: Request, res: Response): Promise<void> {
+    try {
+      const { inviterId } = req.params;
+      if (!inviterId) {
+        res.status(400).json(createErrorResponse('MISSING_INVITER', 'inviterId is required'));
+        return;
+      }
+      const points = await referralService.getPoints(inviterId);
+      res.json(createSuccessResponse<PointsResponse>(points));
+    } catch (error) {
+      console.error('Error in getPoints:', error);
       res.status(500).json(createErrorResponse('INTERNAL_ERROR', 'Internal server error'));
     }
   }

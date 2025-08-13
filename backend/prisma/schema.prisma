@@ -16,6 +16,7 @@ model Referral {
   rewardCode    String?  @unique // Kode unik untuk klaim hadiah
   claimedAt     DateTime?
   redeemedAt    DateTime?
+  inviterId     String?  // optional user id of inviter (for future auth)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -23,6 +24,16 @@ model Referral {
   rewardCodeRef RewardCode?
 
   @@map("referrals")
+}
+model UserPoint {
+  id        String   @id @default(uuid())
+  inviterId String
+  points    Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([inviterId])
+  @@map("user_points")
 }
 
 model Reward {

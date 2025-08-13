@@ -45,6 +45,12 @@ export interface ClaimRewardResponse {
   reward: RewardData;
   expiresAt: string;
   timerMinutes: number;
+  qrUrl?: string;
+}
+
+export interface GenerateLinkResponse {
+  referralCode: string;
+  shareUrl: string;
 }
 
 // Cashier Types
@@ -55,6 +61,13 @@ export interface VerifyCodeResponse {
   remainingTime?: number;
   claimedAt: string;
   expiresAt: string;
+}
+
+export interface PointsResponse {
+  inviterId: string;
+  points: number;
+  nextMilestone?: number;
+  pointsToNext?: number;
 }
 
 // Timer Types

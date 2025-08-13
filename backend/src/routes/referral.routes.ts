@@ -16,6 +16,12 @@ router.get('/:code/rewards', referralController.getAvailableRewards.bind(referra
 // POST /api/claim - Claim reward for referral
 router.post('/claim', referralController.claimReward.bind(referralController));
 
+// POST /api/referral/generate-link - Generate link
+router.post('/generate-link', referralController.generateLink.bind(referralController));
+
+// GET /api/referral/points/:inviterId - Get inviter points
+router.get('/points/:inviterId', referralController.getPoints.bind(referralController));
+
 // GET /api/referral/stats/demo - Get demo referral statistics
 router.get('/stats/demo', referralController.getDemoStats.bind(referralController));
 

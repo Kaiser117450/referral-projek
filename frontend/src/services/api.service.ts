@@ -5,7 +5,9 @@ import {
   RewardData, 
   ClaimRewardResponse, 
   VerifyCodeResponse,
-  DemoReferralStats 
+  DemoReferralStats,
+  GenerateLinkResponse,
+  PointsResponse 
 } from '@/types';
 
 class ApiService {
@@ -71,6 +73,18 @@ class ApiService {
       return response.data.data;
     }
     throw new Error(response.data.error?.message || 'Failed to claim reward');
+  }
+
+  async generateLink(): Promise<GenerateLinkResponse> {
+    const response = await this.api.post<ApiResponse<GenerateLinkResponse>>('/referral/generate-link', {});
+    if (response.data.success && response.data.data) return response.data.data;
+    throw new Error(response.data.error?.message || 'Failed to generate link');
+  }
+
+  async getPoints(inviterId: string): Promise<PointsResponse> {
+    const response = await this.api.get<ApiResponse<PointsResponse>>(`/referral/points/${inviterId}`);
+    if (response.data.success && response.data.data) return response.data.data;
+    throw new Error(response.data.error?.message || 'Failed to get points');
   }
 
   async getDemoStats(): Promise<DemoReferralStats> {

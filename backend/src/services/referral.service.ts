@@ -6,8 +6,11 @@ import {
   RewardData, 
   RewardCodeData, 
   ClaimRewardResponse,
-  VerifyCodeResponse 
+  VerifyCodeResponse,
+  PointsResponse 
 } from '@/types';
+import QRCode from 'qrcode';
+import { s3Service } from './s3.service';
 
 const prisma = new PrismaClient();
 
@@ -90,6 +93,7 @@ export class ReferralService {
       const referral = await prisma.referral.create({
         data: {
           referralCode,
+          inviterId: referralCode, // track inviter by referral code for initial phase
           status: 'PENDING'
         }
       });
@@ -108,8 +112,8 @@ export class ReferralService {
         }
       }
 
-      // Calculate expiration time (15 minutes)
-      const expiresAt = calculateExpirationTime(15);
+      // Calculate expiration time (5 minutes)
+      const expiresAt = calculateExpirationTime(5);
 
       // Create reward code
       const newRewardCode = await prisma.rewardCode.create({
@@ -124,13 +128,23 @@ export class ReferralService {
         }
       });
 
+      // Generate QR and upload to S3 (optional if bucket set)
+      let qrUrl: string | undefined;
+      try {
+        const qrPng = await QRCode.toBuffer(rewardCode!, { scale: 6 });
+        const key = `qr/${rewardCode}.png`;
+        qrUrl = await s3Service.uploadBuffer(key, qrPng, 'image/png');
+      } catch (_) {
+        // ignore if S3 not configured
+      }
+
       // Store timer data in Redis
       await redisService.storeTimer(rewardCode!, {
         code: rewardCode!,
         expiresAt: Math.floor(expiresAt.getTime() / 1000),
         referralId: referral.id,
         rewardId
-      }, 900); // 15 minutes
+      }, 300); // 5 minutes
 
       // Update referral with reward code
       await prisma.referral.update({
@@ -157,7 +171,8 @@ export class ReferralService {
           updatedAt: newRewardCode.reward.updatedAt.toISOString()
         },
         expiresAt: expiresAt.toISOString(),
-        timerMinutes: 15
+        timerMinutes: 5,
+        qrUrl
       };
     } catch (error) {
       console.error('Error creating referral and reward:', error);
@@ -200,6 +215,17 @@ export class ReferralService {
         status = 'USED';
       } else if (isExpired || remainingTime <= 0) {
         status = 'EXPIRED';
+        // Rule: expired codes should be removed to avoid reuse
+        try {
+          await prisma.rewardCode.delete({ where: { code } });
+          await prisma.referral.updateMany({
+            where: { rewardCode: code },
+            data: { status: 'EXPIRED' }
+          });
+          await redisService.deleteTimer(code);
+        } catch (e) {
+          // swallow if already deleted by another process
+        }
       } else {
         status = 'VALID';
       }
@@ -270,6 +296,20 @@ export class ReferralService {
         });
       }
 
+      // Award 1 point to inviter if exists
+      try {
+        const referral = await prisma.referral.findFirst({ where: { rewardCode: code } });
+        if (referral?.inviterId) {
+          await prisma.userPoint.upsert({
+            where: { inviterId: referral.inviterId },
+            update: { points: { increment: 1 } },
+            create: { inviterId: referral.inviterId, points: 1 }
+          });
+        }
+      } catch (_) {
+        // points system optional; ignore errors
+      }
+
       // Remove timer from Redis
       await redisService.deleteTimer(code);
 
@@ -278,6 +318,19 @@ export class ReferralService {
       console.error('Error redeeming reward:', error);
       throw error;
     }
+  }
+
+  async getPoints(inviterId: string): Promise<PointsResponse> {
+    const up = await prisma.userPoint.findUnique({ where: { inviterId } });
+    const points = up?.points ?? 0;
+    const milestones = [10, 25, 50, 100];
+    const nextMilestone = milestones.find(m => m > points);
+    return {
+      inviterId,
+      points,
+      nextMilestone,
+      pointsToNext: nextMilestone ? nextMilestone - points : 0
+    };
   }
 
   /**

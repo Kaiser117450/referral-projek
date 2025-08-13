@@ -11,6 +11,12 @@ const CashierDashboard: React.FC = () => {
   const [isRedeeming, setIsRedeeming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  // QR Scan
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanError, setScanError] = useState<string | null>(null);
+  const videoRef = React.useRef<HTMLVideoElement | null>(null);
+  const scanIntervalRef = React.useRef<number | null>(null);
+  const mediaStreamRef = React.useRef<MediaStream | null>(null);
   
   // Form fields for redemption
   const [cashierId, setCashierId] = useState('');
@@ -82,6 +88,72 @@ const CashierDashboard: React.FC = () => {
       setIsRedeeming(false);
     }
   };
+
+  // QR scan start/stop using BarcodeDetector API (no extra deps)
+  const startScan = async () => {
+    try {
+      setScanError(null);
+      setIsScanning(true);
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      mediaStreamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+
+      // @ts-ignore - BarcodeDetector may be experimental
+      const isSupported = typeof window !== 'undefined' && 'BarcodeDetector' in window;
+      if (!isSupported) {
+        setScanError('QR scanning is not supported in this browser. Input code manually.');
+        return;
+      }
+
+      // @ts-ignore
+      const detector = new window.BarcodeDetector({ formats: ['qr_code'] });
+      const scan = async () => {
+        try {
+          if (!videoRef.current) return;
+          const dets = await detector.detect(videoRef.current);
+          if (dets && dets.length > 0) {
+            const value = dets[0].rawValue || '';
+            if (value) {
+              setCode(value.trim());
+              stopScan();
+              await handleVerify();
+            }
+          }
+        } catch (e) {
+          // ignore sporadic errors
+        }
+      };
+      scanIntervalRef.current = window.setInterval(scan, 600);
+    } catch (e) {
+      setScanError('Tidak dapat mengakses kamera');
+      setIsScanning(false);
+    }
+  };
+
+  const stopScan = () => {
+    if (scanIntervalRef.current) {
+      window.clearInterval(scanIntervalRef.current);
+      scanIntervalRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.pause();
+      videoRef.current.srcObject = null;
+    }
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach(t => t.stop());
+      mediaStreamRef.current = null;
+    }
+    setIsScanning(false);
+  };
+
+  React.useEffect(() => {
+    return () => {
+      stopScan();
+    };
+  }, []);
 
   const getStatusMessage = (status: string): string => {
     switch (status) {
@@ -163,7 +235,7 @@ const CashierDashboard: React.FC = () => {
             Verifikasi Kode Hadiah
           </h2>
           
-          <div className="flex gap-4 mb-6">
+          <div className="flex gap-4 mb-6 flex-wrap">
             <div className="flex-1">
               <input
                 type="text"
@@ -186,6 +258,12 @@ const CashierDashboard: React.FC = () => {
               )}
               {isVerifying ? 'Memverifikasi...' : 'Verifikasi'}
             </button>
+            <button
+              onClick={isScanning ? stopScan : startScan}
+              className="btn-secondary flex items-center gap-2 px-6"
+            >
+              {isScanning ? 'Stop Scan' : 'Scan QR'}
+            </button>
           </div>
 
           {/* Error/Success Messages */}
@@ -206,7 +284,20 @@ const CashierDashboard: React.FC = () => {
               </div>
             </div>
           )}
+          {scanError && (
+            <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg mb-4">
+              <div className="text-yellow-700">{scanError}</div>
+            </div>
+          )}
         </motion.div>
+
+        {/* Scanner Preview */}
+        {isScanning && (
+          <div className="card p-4 mb-8">
+            <div className="text-sm text-gray-600 mb-2">Arahkan kamera ke QR kode pelanggan</div>
+            <video ref={videoRef} className="w-full rounded-lg border border-gray-200" muted playsInline></video>
+          </div>
+        )}
 
         {/* Verification Result */}
         {verificationResult && (

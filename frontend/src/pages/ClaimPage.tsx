@@ -17,6 +17,7 @@ const ClaimPage: React.FC = () => {
   const [timeLeft, setTimeLeft] = useState<number>(0);
   const [copied, setCopied] = useState(false);
   const [isExpired, setIsExpired] = useState(false);
+  const [isUsed, setIsUsed] = useState(false);
 
   useEffect(() => {
     if (rewardId && refCode) {
@@ -39,6 +40,24 @@ const ClaimPage: React.FC = () => {
       return () => clearInterval(timer);
     }
   }, [claimData, timeLeft]);
+
+  // Poll status to detect USED/EXPIRED while user keeps page open
+  useEffect(() => {
+    if (!claimData) return;
+    const poll = setInterval(async () => {
+      try {
+        const res = await apiService.verifyCode(claimData.rewardCode);
+        if (res.status === 'USED') setIsUsed(true);
+        if (res.status === 'EXPIRED') setIsExpired(true);
+        if (typeof res.remainingTime === 'number' && res.remainingTime >= 0) {
+          setTimeLeft(res.remainingTime);
+        }
+      } catch (_) {
+        // ignore transient errors
+      }
+    }, 10000);
+    return () => clearInterval(poll);
+  }, [claimData]);
 
   const claimReward = async () => {
     try {
@@ -73,8 +92,7 @@ const ClaimPage: React.FC = () => {
   };
 
   const getTimeColor = (): string => {
-    if (timeLeft <= 300) return 'text-red-500'; // Last 5 minutes
-    if (timeLeft <= 600) return 'text-yellow-500'; // Last 10 minutes
+    if (timeLeft <= 60) return 'text-red-500';
     return 'text-green-500';
   };
 
@@ -197,6 +215,34 @@ const ClaimPage: React.FC = () => {
               </p>
             </div>
 
+            {/* Status Badge */}
+            <div className="mb-4 text-center">
+              {isUsed && (
+                <span className="inline-block px-3 py-1 rounded-full bg-gray-200 text-gray-700 text-sm font-semibold">SUDAH DIGUNAKAN</span>
+              )}
+              {!isUsed && isExpired && (
+                <span className="inline-block px-3 py-1 rounded-full bg-yellow-200 text-yellow-800 text-sm font-semibold">EXPIRED</span>
+              )}
+            </div>
+
+            {/* QR Preview (if available) */}
+            {claimData.qrUrl && (
+              <div className="card p-8 text-center mb-6">
+                <h3 className="text-xl font-bold text-gray-800 mb-4">QR Kode</h3>
+                <div className="flex justify-center">
+                  <div className="relative inline-block">
+                    <img src={claimData.qrUrl} alt="QR Kode" className={`w-48 h-48 object-contain ${isExpired || isUsed ? 'opacity-60' : ''}`} />
+                    {(isExpired || isUsed) && (
+                      <span className={`absolute inset-0 flex items-center justify-center text-white text-sm font-bold ${isUsed ? 'bg-gray-800/60' : 'bg-yellow-600/60'}`}>
+                        {isUsed ? 'SUDAH DIGUNAKAN' : 'EXPIRED'}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <p className="text-gray-600 mt-4">Tunjukkan QR ini ke kasir untuk dipindai</p>
+              </div>
+            )}
+
             {/* Reward Code */}
             <div className="card p-8 text-center">
               <h3 className="text-xl font-bold text-gray-800 mb-4">
@@ -212,13 +258,13 @@ const ClaimPage: React.FC = () => {
               </div>
               
               <p className="text-gray-600 mb-6">
-                Tunjukkan kode ini kepada kasir untuk menukarkan hadiah Anda
+                Tunjukkan kode atau QR ini kepada kasir untuk menukarkan hadiah Anda
               </p>
               
               <button
                 onClick={copyCode}
                 className="btn-secondary flex items-center gap-2 mx-auto"
-                disabled={isExpired}
+                disabled={isExpired || isUsed}
               >
                 {copied ? <CheckCircle className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
                 {copied ? 'Tersalin!' : 'Salin Kode'}
@@ -249,8 +295,7 @@ const ClaimPage: React.FC = () => {
                   <div className="text-sm text-blue-700">
                     <p className="font-semibold mb-1">Penting!</p>
                     <p>
-                      Kode ini hanya berlaku selama 15 menit. Pastikan Anda menukarkannya 
-                      segera setelah diklaim. Setelah waktu habis, kode tidak dapat digunakan lagi.
+                      Kode ini hanya berlaku selama {claimData.timerMinutes} menit. Pastikan Anda menukarkannya segera setelah diklaim. Setelah waktu habis, kode tidak dapat digunakan lagi. QR tetap tampil untuk bukti, namun statusnya akan menjadi EXPIRED.
                     </p>
                   </div>
                 </div>
