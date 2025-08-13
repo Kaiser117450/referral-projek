@@ -25,16 +25,8 @@ export function generateRewardCode(): string {
 }
 
 /**
- * Calculate expiration time in minutes from now
- */
-export function calculateExpirationTime(minutes: number): Date {
-  const expires = new Date();
-  expires.setMinutes(expires.getMinutes() + minutes);
-  return expires;
-}
-
-/**
- * Calculate expiration time (15 minutes from now)
+ * Calculate expiration time in minutes from now.
+ * Defaults to 15 minutes if not specified.
  */
 export function calculateExpirationTime(minutes: number = 15): Date {
   const now = new Date();
