@@ -1,7 +1,6 @@
 import { Request, Response } from 'express';
 import { referralService } from '@/services/referral.service';
 import { createErrorResponse, createSuccessResponse } from '@/utils/helpers';
-import { createSuccessResponse, createErrorResponse } from '@/utils/helpers';
 
 export class CashierController {
   /**
