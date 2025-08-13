@@ -6,6 +6,7 @@ import compression from 'compression';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
+import path from 'path';
 
 // Import routes
 import referralRoutes from '@/routes/referral.routes';
@@ -52,6 +53,9 @@ app.use('/api/', limiter);
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Static file serving for local uploads
+app.use('/uploads', express.static(path.resolve(__dirname, '../uploads')));
 
 // Health check endpoint
 app.get('/health', (req: express.Request, res: express.Response) => {

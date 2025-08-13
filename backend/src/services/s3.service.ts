@@ -1,4 +1,5 @@
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { localFileService } from './local-file.service';
 
 export class S3Service {
   private client: S3Client;
@@ -13,18 +14,23 @@ export class S3Service {
 
   async uploadBuffer(key: string, buffer: Buffer, contentType: string): Promise<string> {
     if (!this.bucketName) {
-      throw new Error('AWS_S3_BUCKET is not configured');
+      return localFileService.saveBuffer(key, buffer);
     }
 
-    await this.client.send(new PutObjectCommand({
-      Bucket: this.bucketName,
-      Key: key,
-      Body: buffer,
-      ContentType: contentType,
-      ACL: 'public-read'
-    }));
+    try {
+      await this.client.send(new PutObjectCommand({
+        Bucket: this.bucketName,
+        Key: key,
+        Body: buffer,
+        ContentType: contentType,
+        ACL: 'public-read'
+      }));
 
-    return `https://${this.bucketName}.s3.${this.region}.amazonaws.com/${key}`;
+      return `https://${this.bucketName}.s3.${this.region}.amazonaws.com/${key}`;
+    } catch (error) {
+      console.warn('S3 upload failed, using local storage:', error);
+      return localFileService.saveBuffer(key, buffer);
+    }
   }
 }
 

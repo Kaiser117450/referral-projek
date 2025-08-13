@@ -128,15 +128,10 @@ export class ReferralService {
         }
       });
 
-      // Generate QR and upload to S3 (optional if bucket set)
-      let qrUrl: string | undefined;
-      try {
-        const qrPng = await QRCode.toBuffer(rewardCode!, { scale: 6 });
-        const key = `qr/${rewardCode}.png`;
-        qrUrl = await s3Service.uploadBuffer(key, qrPng, 'image/png');
-      } catch (_) {
-        // ignore if S3 not configured
-      }
+      // Generate QR and upload (S3 or local)
+      const qrPng = await QRCode.toBuffer(rewardCode!, { scale: 6 });
+      const key = `qr/${rewardCode}.png`;
+      const qrUrl = await s3Service.uploadBuffer(key, qrPng, 'image/png');
 
       // Store timer data in Redis
       await redisService.storeTimer(rewardCode!, {
