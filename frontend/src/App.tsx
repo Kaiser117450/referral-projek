@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import ReferralLandingPage from '@/pages/ReferralLandingPage';
-import ClaimPage from '@/pages/ClaimPage';
-import CashierDashboard from '@/pages/CashierDashboard';
-import ReferrerDashboard from '@/pages/ReferrerDashboard';
+
+// Lazily load pages to reduce initial bundle size and improve performance
+const ReferralLandingPage = lazy(() => import('@/pages/ReferralLandingPage'));
+const ClaimPage = lazy(() => import('@/pages/ClaimPage'));
+const CashierDashboard = lazy(() => import('@/pages/CashierDashboard'));
+const ReferrerDashboard = lazy(() => import('@/pages/ReferrerDashboard'));
 
 function App() {
   return (
@@ -15,22 +17,24 @@ function App() {
           animate={{ opacity: 1 }}
           transition={{ duration: 0.5 }}
         >
-          <Routes>
-            {/* Main referral landing page */}
-            <Route path="/ref/:code" element={<ReferralLandingPage />} />
-            
-            {/* Claim page with timer */}
-            <Route path="/claim/:rewardId" element={<ClaimPage />} />
-            
-            {/* Cashier dashboard */}
-            <Route path="/cashier" element={<CashierDashboard />} />
-            
-            {/* Referrer dashboard (demo) */}
-            <Route path="/" element={<ReferrerDashboard />} />
-            
-            {/* Fallback route */}
-            <Route path="*" element={<ReferrerDashboard />} />
-          </Routes>
+          <Suspense fallback={<div className="flex items-center justify-center py-20">Loading...</div>}>
+            <Routes>
+              {/* Main referral landing page */}
+              <Route path="/ref/:code" element={<ReferralLandingPage />} />
+
+              {/* Claim page with timer */}
+              <Route path="/claim/:rewardId" element={<ClaimPage />} />
+
+              {/* Cashier dashboard */}
+              <Route path="/cashier" element={<CashierDashboard />} />
+
+              {/* Referrer dashboard (demo) */}
+              <Route path="/" element={<ReferrerDashboard />} />
+
+              {/* Fallback route */}
+              <Route path="*" element={<ReferrerDashboard />} />
+            </Routes>
+          </Suspense>
         </motion.div>
       </div>
     </Router>
