@@ -1,11 +1,7 @@
 {
   "/not-found": "app/not-found.js",
-  "/test-session/page": "app/test-session/page.js",
-  "/dashboard/page": "app/dashboard/page.js",
   "/page": "app/page.js",
-  "/api/milestones/me/route": "app/api/milestones/me/route.js",
-  "/api/referral/route": "app/api/referral/route.js",
-  "/api/points/me/route": "app/api/points/me/route.js",
-  "/referral/create/page": "app/referral/create/page.js",
-  "/referral/page": "app/referral/page.js"
+  "/dashboard/page": "app/dashboard/page.js",
+  "/login/page": "app/login/page.js",
+  "/r/[slug]/page": "app/r/[slug]/page.js"
 }

@@ -1,9 +1,9 @@
 {
   "pages": {
-    "/test-session/page": [
+    "/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/test-session/page.js"
+      "static/chunks/app/page.js"
     ],
     "/layout": [
       "static/chunks/webpack.js",
@@ -11,25 +11,20 @@
       "static/css/app/layout.css",
       "static/chunks/app/layout.js"
     ],
+    "/login/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/login/page.js"
+    ],
     "/dashboard/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/dashboard/page.js"
     ],
-    "/page": [
+    "/r/[slug]/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/page.js"
-    ],
-    "/referral/create/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/referral/create/page.js"
-    ],
-    "/referral/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/referral/page.js"
+      "static/chunks/app/r/[slug]/page.js"
     ],
     "/not-found": [
       "static/chunks/webpack.js",
