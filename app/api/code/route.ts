@@ -1,19 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient, requireAuth } from '@/lib/supabase/server';
+import { createServerClientWithRequest } from '@/lib/supabase/server';
 import { generateCodeSchema } from '@/lib/validation';
 import { generateRandomCode, hashCode, generateSalt, calculateExpiryTime } from '@/lib/utils';
 
 // POST /api/code/generate
 export async function POST(request: NextRequest) {
   try {
-    const user = await requireAuth();
+    const supabase = createServerClientWithRequest(request);
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    }
     const body = await request.json();
-    
+
     // Validate input
     const validatedData = generateCodeSchema.parse(body);
-    
-    const supabase = await createServerClient();
-    
+
     // Verify the user is the referred user
     if (validatedData.referredUserId !== user.id) {
       return NextResponse.json(
