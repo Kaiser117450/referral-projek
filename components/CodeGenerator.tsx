@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Button } from '@/components/ui/Button';
 import CountdownTimer from '@/components/ui/CountdownTimer';
+import { generateQRCodeDataUrl } from '@/lib/utils';
 
 interface CodeGeneratorProps {
   inviteId: string;
@@ -16,6 +17,15 @@ export default function CodeGenerator({ inviteId, inviteTitle }: CodeGeneratorPr
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (code) {
+      generateQRCodeDataUrl(code).then(setQrCodeUrl);
+    } else {
+      setQrCodeUrl(null);
+    }
+  }, [code]);
 
   const generate = async () => {
     setLoading(true);
@@ -52,6 +62,9 @@ export default function CodeGenerator({ inviteId, inviteTitle }: CodeGeneratorPr
           <p className="text-sm text-gray-600">Kode untuk {inviteTitle}</p>
           <p className="text-4xl font-mono font-bold tracking-widest">{code}</p>
         </div>
+        {qrCodeUrl && (
+          <img src={qrCodeUrl} alt={`QR code for ${code}`} className="mx-auto h-40 w-40" />
+        )}
         {expiresAt && (
           <div className="flex justify-center">
             <CountdownTimer expiresAt={expiresAt} />

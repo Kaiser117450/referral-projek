@@ -1,10 +1,13 @@
 'use client';
 
 import React, { useState } from 'react';
+import dynamic from 'next/dynamic';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { toast } from 'react-hot-toast';
+
+const QrReader = dynamic(async () => (await import('react-qr-reader')).QrReader as any, { ssr: false });
 
 interface RedemptionResult {
   status: 'SUCCESS' | 'INVALID' | 'USED' | 'EXPIRED' | 'INACTIVE';
@@ -21,6 +24,7 @@ export default function CashierPage() {
   const [code, setCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<RedemptionResult | null>(null);
+  const [showScanner, setShowScanner] = useState(false);
 
   const handleRedeem = async () => {
     if (!code.trim()) {
@@ -141,7 +145,7 @@ export default function CashierPage() {
                     disabled={isLoading}
                   />
                 </div>
-                
+
                 <Button
                   onClick={handleRedeem}
                   loading={isLoading}
@@ -151,6 +155,31 @@ export default function CashierPage() {
                 >
                   {isLoading ? 'Verifying...' : 'Redeem Code'}
                 </Button>
+
+                <Button
+                  onClick={() => setShowScanner((prev) => !prev)}
+                  variant="outline"
+                  className="w-full"
+                  type="button"
+                >
+                  {showScanner ? 'Close Scanner' : 'Scan QR Code'}
+                </Button>
+
+                {showScanner && (
+                  <div className="mt-4">
+                    <QrReader
+                      constraints={{ facingMode: 'environment' }}
+                      onResult={(result, error) => {
+                        if (!!result) {
+                          const text = result.getText();
+                          setCode(text.toUpperCase());
+                          setShowScanner(false);
+                        }
+                      }}
+                      containerStyle={{ width: '100%' }}
+                    />
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
