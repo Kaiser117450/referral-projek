@@ -2,6 +2,7 @@ import { nanoid } from 'nanoid';
 import bcrypt from 'bcryptjs';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import QRCode from 'qrcode';
 
 // Utility function for combining Tailwind classes
 export function cn(...inputs: ClassValue[]) {
@@ -109,14 +110,13 @@ export function truncateText(text: string, maxLength: number): string {
 }
 
 // Generate QR code data URL
-export function generateQRCodeDataUrl(text: string): string {
-  // This is a placeholder - in production, use a proper QR code library
-  return `data:image/svg+xml;base64,${btoa(`
-    <svg xmlns="http://www.w3.org/2000/svg" width="200" height="200">
-      <rect width="200" height="200" fill="white"/>
-      <text x="100" y="100" text-anchor="middle" fill="black">${text}</text>
-    </svg>
-  `)}`;
+export async function generateQRCodeDataUrl(text: string): Promise<string> {
+  try {
+    return await QRCode.toDataURL(text, { margin: 1 });
+  } catch (error) {
+    console.error('Error generating QR code:', error);
+    return '';
+  }
 }
 
 // Validate email format
