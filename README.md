@@ -1,341 +1,354 @@
-# Referral Marketing Application
+# Referral & Code Redemption System
 
-A modern, WhatsApp-inspired referral marketing platform built with React, Node.js, and PostgreSQL. Users can invite friends, earn points, and redeem rewards through a gamified system.
+A modern, secure, and scalable referral system built with Next.js 14+, Supabase, and TypeScript. This system allows users to create referral links, generate ephemeral codes with 5-minute TTL, and redeem them through cashiers to earn points and unlock milestones.
 
-## 🚀 Features
-
-### Core Functionality
-- **User Authentication**: Username/password-based login system
-- **Referral Management**: Create and track referrals with unique codes
-- **Point System**: Earn points for successful referrals
-- **Reward Catalog**: Browse and redeem rewards with earned points
-- **Cashier Verification**: Quick visual verification system for rewards
-- **Gamification**: Milestones and progress tracking
-
-### Technical Features
-- **Modern UI/UX**: Clean design with Red-Orange-Yellow gradient accents
-- **Responsive Design**: Mobile-first approach with Tailwind CSS
-- **Real-time Updates**: Live referral tracking and statistics
-- **Secure Authentication**: JWT-based authentication with refresh tokens
-- **API-First Architecture**: RESTful API with comprehensive endpoints
-- **Database Optimization**: Prisma ORM with PostgreSQL
-- **Caching**: Redis for performance optimization
-
-## 🏗️ Architecture
+## 🏗️ Architecture Overview
 
 ### Tech Stack
+- **Frontend & Backend**: Next.js 14+ (App Router) with TypeScript
+- **Styling**: Tailwind CSS with custom red theme
+- **Database**: Supabase PostgreSQL with Row Level Security (RLS)
+- **Authentication**: Supabase Auth (Email OTP + OAuth)
+- **Storage**: Supabase Storage for JSON receipts
+- **Deployment**: Vercel (app) + Supabase (database/auth/storage)
 
-#### Frontend
-- **React 18** with TypeScript
-- **Vite** for fast development and building
-- **Tailwind CSS** for styling
-- **Framer Motion** for animations
-- **React Router DOM** for routing
-- **Axios** for API communication
-- **Zustand** for state management
+### Core Features
+- **User Management**: Role-based access control (user, cashier, admin)
+- **Referral System**: Create unique referral links with tracking
+- **Code Generation**: Single-use ephemeral codes with 5-minute TTL
+- **Point System**: Earn points through successful referrals
+- **Milestone Rewards**: Unlock achievements based on point thresholds
+- **Cashier Interface**: Dedicated UI for code redemption
+- **Admin Panel**: User management, analytics, and system oversight
 
-#### Backend
-- **Node.js** with Express
-- **TypeScript** for type safety
-- **Prisma ORM** for database operations
-- **PostgreSQL** as primary database
-- **Redis** for caching and sessions
-- **JWT** for authentication
-- **Zod** for validation
-- **Sentry** for error tracking
+### Security Features
+- **Row Level Security (RLS)**: Database-level access control
+- **Input Validation**: Zod schemas for all API endpoints
+- **Rate Limiting**: Configurable request throttling
+- **Audit Logging**: Comprehensive activity tracking
+- **Code Hashing**: Secure storage of ephemeral codes
+- **CSRF/XSS Protection**: Security headers and input sanitization
 
-#### Infrastructure
-- **Docker** for containerization
-- **Docker Compose** for development environment
-- **AWS S3** for file storage
-- **Rate limiting** and security middleware
-
-## 📁 Project Structure
+## 📁 Directory Structure
 
 ```
-referral-project/
-├── backend/                 # Backend API
-│   ├── src/
-│   │   ├── controllers/    # Route controllers
-│   │   ├── services/       # Business logic
-│   │   ├── routes/         # API routes
-│   │   ├── middleware/     # Custom middleware
-│   │   └── index.ts        # Server entry point
-│   ├── prisma/             # Database schema and migrations
-│   ├── package.json        # Backend dependencies
-│   └── Dockerfile.dev      # Development Dockerfile
-├── frontend/               # React frontend
-│   ├── src/
-│   │   ├── components/     # Reusable components
-│   │   ├── pages/          # Page components
-│   │   ├── contexts/       # React contexts
-│   │   ├── services/       # API services
-│   │   └── App.tsx         # Main app component
-│   ├── package.json        # Frontend dependencies
-│   └── Dockerfile.dev      # Development Dockerfile
-├── docker-compose.yml      # Development environment
-└── README.md               # This file
+referral-projek/
+├── app/                          # Next.js App Router
+│   ├── (marketing)/             # Public landing pages
+│   ├── api/                     # API routes
+│   │   ├── admin/               # Admin endpoints
+│   │   ├── code/                # Code generation/validation
+│   │   ├── points/              # Points and milestones
+│   │   ├── redeem/              # Code redemption
+│   │   └── referral/            # Referral management
+│   ├── cashier/                 # Cashier interface
+│   ├── dashboard/                # User dashboard
+│   └── layout.tsx               # Root layout
+├── components/                   # Reusable UI components
+│   └── ui/                      # Base UI components
+├── lib/                         # Utility libraries
+│   ├── supabase/                # Supabase client/server
+│   ├── validation.ts            # Zod schemas
+│   ├── utils.ts                 # Helper functions
+│   └── rate-limit.ts            # Rate limiting utilities
+├── public/                      # Static assets
+├── scripts/                     # Database scripts
+├── supabase/                    # Database schema and policies
+├── .env.example                 # Environment variables template
+├── next.config.js               # Next.js configuration
+├── package.json                 # Dependencies and scripts
+├── tailwind.config.js           # Tailwind CSS configuration
+└── README.md                    # This file
 ```
 
-## 🚀 Quick Start
+## 🗄️ Database Schema
+
+### Core Tables
+
+#### `profiles`
+- Extends Supabase auth.users
+- Stores user information, roles, and points
+- RLS policies ensure users can only access their own data
+
+#### `invites`
+- Referral invitation configurations
+- Unique slugs for public sharing
+- Configurable usage limits and expiration
+
+#### `referrals`
+- Tracks individual referral attempts
+- Links inviters to invitees
+- Status tracking (PENDING, COMPLETED, FAILED)
+
+#### `ephemeral_codes`
+- Single-use codes with 5-minute TTL
+- Hashed storage for security
+- Unique constraints prevent duplicate active codes
+
+#### `redemptions`
+- Records successful code redemptions
+- Links to Supabase Storage receipts
+- Audit trail for all transactions
+
+#### `milestones`
+- Configurable achievement levels
+- Point thresholds and rewards
+- Active/inactive status management
+
+#### `milestone_awards`
+- Tracks user milestone progress
+- Unlock timestamps and status
+- Links users to specific milestones
+
+### Security & Performance
+- **Indexes**: Optimized queries with partial indexes
+- **Triggers**: Automated timestamp updates and audit logging
+- **Functions**: Atomic operations for point awarding and milestone checks
+- **Cron Jobs**: Automated cleanup and maintenance tasks
+
+## 🚀 Getting Started
 
 ### Prerequisites
-- Docker and Docker Compose
-- Node.js 18+ (for local development)
-- Git
+- Node.js 18+ 
+- npm or yarn
+- Supabase account
+- Vercel account (for deployment)
 
-### Using Docker (Recommended)
-
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd referral-project
-   ```
-
-2. **Set up environment variables**
-   ```bash
-   # Backend
-   cp backend/env.example backend/.env
-   # Edit backend/.env with your actual values
-   
-   # Frontend
-   cp frontend/env.example frontend/.env
-   # Edit frontend/.env with your actual values
-   ```
-
-3. **Start the development environment**
-   ```bash
-   docker-compose up --build
-   ```
-
-4. **Access the application**
-   - Frontend: http://localhost:3000
-   - Backend API: http://localhost:3001
-   - Health Check: http://localhost:3001/health
-
-### Local Development
-
-1. **Install dependencies**
-   ```bash
-   # Backend
-   cd backend
-   npm install
-   
-   # Frontend
-   cd ../frontend
-   npm install
-   ```
-
-2. **Set up database**
-   ```bash
-   cd backend
-   npx prisma generate
-   npx prisma migrate dev
-   ```
-
-3. **Start services**
-   ```bash
-   # Backend (Terminal 1)
-   cd backend
-   npm run dev
-   
-   # Frontend (Terminal 2)
-   cd frontend
-   npm run dev
-   ```
-
-## 🔧 Configuration
-
-### Environment Variables
-
-#### Backend (.env)
-```env
-# Server
-PORT=3001
-NODE_ENV=development
-
-# Database
-DATABASE_URL="postgresql://username:password@localhost:5432/referral_marketing"
-REDIS_URL="redis://localhost:6379"
-
-# JWT
-JWT_SECRET="your-super-secret-jwt-key-here"
-JWT_EXPIRES_IN="7d"
-
-# AWS S3
-AWS_ACCESS_KEY_ID="your-aws-access-key-id"
-AWS_SECRET_ACCESS_KEY="your-aws-secret-access-key"
-AWS_S3_BUCKET="your-s3-bucket-name"
-AWS_REGION="ap-southeast-2"
-
-# Third Party Services
-SENTRY_DSN="your-sentry-dsn-here"
-
-# Rate Limiting
-RATE_LIMIT_WINDOW_MS=900000
-RATE_LIMIT_MAX_REQUESTS=100
-
-# Security
-CORS_ORIGIN="http://localhost:3000"
+### 1. Clone and Install
+```bash
+git clone <repository-url>
+cd referral-projek
+npm install
 ```
 
-#### Frontend (.env)
-```env
-# API Configuration
-VITE_API_URL="http://localhost:3001/api"
+### 2. Environment Setup
+```bash
+cp .env.example .env.local
+```
 
-# Sentry Configuration
-VITE_SENTRY_DSN="your-sentry-dsn-here"
+Fill in your environment variables:
+```env
+# Supabase Configuration
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 
 # App Configuration
-VITE_APP_NAME="Referral Marketing App"
-VITE_APP_VERSION="1.0.0"
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+NODE_ENV=development
 
-# Feature Flags
-VITE_ENABLE_ANALYTICS=false
-VITE_ENABLE_DEBUG_MODE=false
+# Security
+JWT_SECRET=your_jwt_secret
+ENCRYPTION_KEY=your_encryption_key
+
+# Rate Limiting
+RATE_LIMIT_MAX_REQUESTS=100
+RATE_LIMIT_WINDOW_MS=900000
+
+# Code Generation
+CODE_LENGTH=8
+CODE_EXPIRY_MINUTES=5
 ```
 
-## 📊 Database Schema
-
-The application uses PostgreSQL with the following main models:
-
-- **Users**: Authentication and profile information
-- **Referrals**: Referral relationships and tracking
-- **Rewards**: Available rewards and their costs
-- **PointTransactions**: Point earning and spending history
-- **Milestones**: User achievement tracking
-- **CashierSessions**: Reward verification sessions
-
-## 🔌 API Endpoints
-
-### Authentication
-- `POST /api/auth/register` - User registration
-- `POST /api/auth/login` - User login
-- `POST /api/auth/refresh` - Refresh access token
-- `GET /api/auth/me` - Get current user
-
-### Referrals
-- `POST /api/referral/create` - Create new referral
-- `GET /api/referral/stats` - Get referral statistics
-- `GET /api/referral/my-code` - Get user's referral code
-- `GET /api/referral/history` - Get referral history
-
-### Rewards
-- `GET /api/reward/catalog` - Get reward catalog
-- `POST /api/reward/redeem` - Redeem reward
-- `GET /api/reward/my-rewards` - Get user's rewards
-
-### Cashier
-- `POST /api/cashier/verify` - Verify referral reward
-- `GET /api/cashier/referral/:rewardCode` - Get referral by code
-
-## 🎨 Design System
-
-### Color Palette
-- **Base**: White (#FFFFFF) and Black (#000000)
-- **Primary Gradient**: Red (#EF4444) → Orange (#F97316) → Yellow (#EAB308)
-- **Accents**: Various shades of gray for text and borders
-
-### Typography
-- **Font Family**: Inter (Google Fonts)
-- **Weights**: 400 (Regular), 500 (Medium), 600 (SemiBold), 700 (Bold), 800 (ExtraBold)
-
-### Components
-- **Buttons**: Multiple variants (primary, secondary, outline, ghost)
-- **Cards**: Consistent shadow and border styling
-- **Forms**: Clean input styling with focus states
-- **Animations**: Smooth transitions and micro-interactions
-
-## 🧪 Development
-
-### Available Scripts
-
-#### Backend
+### 3. Database Setup
 ```bash
-npm run dev          # Start development server
-npm run build        # Build for production
-npm run test         # Run tests
-npm run prisma:generate  # Generate Prisma client
-npm run prisma:migrate   # Run database migrations
-npm run prisma:studio    # Open Prisma Studio
+# Run database schema
+npm run db:setup
+
+# Seed with sample data
+npm run db:seed
 ```
 
-#### Frontend
+### 4. Development
 ```bash
-npm run dev          # Start development server
-npm run build        # Build for production
-npm run preview      # Preview production build
-npm run lint         # Run ESLint
-npm run type-check   # Run TypeScript type checking
+npm run dev
 ```
+
+Visit [http://localhost:3000](http://localhost:3000) to see your app.
+
+## 🔧 API Endpoints
+
+### Authentication Required Endpoints
+
+#### Points & Milestones
+- `GET /api/points/me` - Get user's points and history
+- `GET /api/milestones/me` - Get milestone progress
+
+#### Referral Management
+- `POST /api/referral` - Create new referral invite
+- `GET /api/referral` - Get user's invites
+- `PUT /api/referral` - Update invite
+- `DELETE /api/referral` - Delete invite
+
+#### Code Generation
+- `POST /api/code` - Generate ephemeral code
+- `GET /api/code` - Get user's codes or validate code
+
+### Cashier Endpoints
+- `POST /api/redeem` - Redeem referral code
+- `GET /api/redeem/history` - Get redemption history
+
+### Admin Endpoints
+- `GET /api/admin/users` - List and manage users
+- `PUT /api/admin/users` - Update user roles
+- `DELETE /api/admin/users` - Ban users
+- `GET /api/admin/codes` - View and manage codes
+- `DELETE /api/admin/codes` - Revoke codes
+- `POST /api/admin/codes` - Get analytics
+
+## 🎨 UI Components
+
+### Core Components
+- **Button**: Multiple variants (primary, secondary, outline, danger)
+- **Card**: Flexible content containers with headers, content, and footers
+- **Badge**: Status indicators with color variants
+- **CountdownTimer**: Real-time countdown for ephemeral codes
+
+### Pages
+- **Landing Page**: Marketing site with feature overview
+- **Dashboard**: User overview with tabs for points, milestones, and referrals
+- **Cashier Interface**: Streamlined code redemption workflow
+- **Admin Panel**: User and system management
+
+## 🔐 Security Features
+
+### Database Security
+- **Row Level Security (RLS)**: Granular access control
+- **Input Validation**: Zod schemas for all inputs
+- **SQL Injection Prevention**: Parameterized queries
+- **Audit Logging**: Complete activity tracking
+
+### Application Security
+- **Rate Limiting**: Configurable request throttling
+- **Authentication**: Supabase Auth with role-based access
+- **CSRF Protection**: Security headers and token validation
+- **XSS Prevention**: Input sanitization and output encoding
+
+### Code Security
+- **Ephemeral Codes**: 5-minute TTL with automatic expiration
+- **Code Hashing**: bcryptjs with unique salts
+- **Single-Use**: Atomic transactions prevent double-spending
+- **Receipt Storage**: JSON artifacts in Supabase Storage
+
+## 📊 Performance & Optimization
+
+### Database Optimization
+- **Indexes**: Strategic indexing for common queries
+- **Partial Indexes**: Unique constraints on active codes
+- **Cron Jobs**: Automated cleanup and maintenance
+- **Connection Pooling**: Efficient database connections
+
+### Frontend Optimization
+- **Code Splitting**: Dynamic imports for better performance
+- **Image Optimization**: Next.js built-in image optimization
+- **Caching**: Strategic caching strategies
+- **Bundle Analysis**: Webpack optimizations
+
+### Edge Functions
+- **API Routes**: Serverless API endpoints
+- **Middleware**: Rate limiting and authentication
+- **Global Distribution**: Vercel Edge Network
+
+## 🧪 Testing & Quality Assurance
+
+### Testing Strategy
+- **Unit Tests**: Jest for utility functions and components
+- **Integration Tests**: API endpoint testing with mocked Supabase
+- **E2E Tests**: Playwright for full user journey testing
+- **Type Safety**: TypeScript for compile-time error prevention
 
 ### Code Quality
-- **ESLint** for code linting
-- **TypeScript** for type safety
-- **Prettier** for code formatting
-- **Husky** for git hooks (if configured)
+- **ESLint**: Code linting and style enforcement
+- **Prettier**: Code formatting consistency
+- **Type Checking**: Strict TypeScript configuration
+- **Git Hooks**: Pre-commit quality checks
 
 ## 🚀 Deployment
 
-### Production Build
-```bash
-# Backend
-cd backend
-npm run build
-npm start
+### Vercel Deployment
+1. Connect your GitHub repository to Vercel
+2. Configure environment variables
+3. Deploy automatically on push to main branch
 
-# Frontend
-cd frontend
-npm run build
-# Serve dist/ folder with your preferred web server
-```
+### Supabase Setup
+1. Create new Supabase project
+2. Run database migrations
+3. Configure authentication providers
+4. Set up storage buckets
 
-### Docker Production
-```bash
-# Build production images
-docker build -f backend/Dockerfile.prod -t referral-backend .
-docker build -f frontend/Dockerfile.prod -t referral-frontend .
+### Environment Variables
+Ensure all required environment variables are set in your deployment platform:
+- Supabase credentials
+- Security keys
+- Rate limiting configuration
+- Storage configuration
 
-# Run with production environment variables
-docker-compose -f docker-compose.prod.yml up -d
-```
+## 📈 Monitoring & Analytics
+
+### Built-in Monitoring
+- **Audit Logs**: Complete user activity tracking
+- **Rate Limiting**: Request pattern analysis
+- **Error Tracking**: Comprehensive error logging
+- **Performance Metrics**: Response time monitoring
+
+### External Monitoring
+- **Uptime Monitoring**: Uptime Robot integration
+- **Error Tracking**: Sentry integration (optional)
+- **Logging**: Structured logging for production
+
+## 🔄 Maintenance & Updates
+
+### Regular Tasks
+- **Database Cleanup**: Automated via cron jobs
+- **Security Updates**: Regular dependency updates
+- **Performance Monitoring**: Ongoing optimization
+- **Backup Management**: Automated database backups
+
+### Update Process
+1. Test changes in development
+2. Deploy to staging environment
+3. Run full test suite
+4. Deploy to production
+5. Monitor for issues
 
 ## 🤝 Contributing
 
+### Development Workflow
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+2. Create feature branch
+3. Make changes with tests
+4. Submit pull request
+5. Code review and merge
 
-## 📝 License
+### Code Standards
+- Follow TypeScript best practices
+- Write comprehensive tests
+- Update documentation
+- Follow commit message conventions
+
+## 📚 Additional Resources
+
+### Documentation
+- [Next.js Documentation](https://nextjs.org/docs)
+- [Supabase Documentation](https://supabase.com/docs)
+- [Tailwind CSS Documentation](https://tailwindcss.com/docs)
+- [TypeScript Documentation](https://www.typescriptlang.org/docs)
+
+### Community
+- [Next.js Discord](https://discord.gg/nextjs)
+- [Supabase Discord](https://discord.supabase.com)
+- [GitHub Issues](https://github.com/your-repo/issues)
+
+## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🆘 Support
+## 🙏 Acknowledgments
 
-For support and questions:
-- Create an issue in the repository
-- Check the documentation
-- Review the API documentation
-
-## 🔮 Roadmap
-
-### Phase 2 Features
-- [ ] WhatsApp integration for notifications
-- [ ] Advanced analytics dashboard
-- [ ] Multi-language support
-- [ ] Mobile app (React Native)
-- [ ] Advanced gamification features
-- [ ] Social media integration
-
-### Phase 3 Features
-- [ ] AI-powered referral suggestions
-- [ ] Advanced reward algorithms
-- [ ] Enterprise features
-- [ ] White-label solutions
-- [ ] Advanced reporting and analytics
+- Next.js team for the amazing framework
+- Supabase team for the excellent backend platform
+- Tailwind CSS team for the utility-first CSS framework
+- Open source community for various dependencies
 
 ---
 

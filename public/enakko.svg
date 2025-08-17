@@ -1,0 +1,17 @@
+<svg width="120" height="40" viewBox="0 0 120 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <circle cx="20" cy="20" r="18" fill="#dc2626" stroke="#991b1b" stroke-width="2"/>
+  
+  <!-- Letter "E" stylized -->
+  <path d="M12 12h16v4h-12v2h10v4h-10v2h12v4h-16v-16z" fill="white"/>
+  
+  <!-- Text "enakko" -->
+  <text x="45" y="25" font-family="Inter, sans-serif" font-size="16" font-weight="600" fill="#dc2626">
+    enakko
+  </text>
+  
+  <!-- Decorative elements -->
+  <circle cx="110" cy="10" r="2" fill="#fca5a5" opacity="0.6"/>
+  <circle cx="115" cy="15" r="1.5" fill="#fca5a5" opacity="0.4"/>
+  <circle cx="105" cy="20" r="1" fill="#fca5a5" opacity="0.3"/>
+</svg>
