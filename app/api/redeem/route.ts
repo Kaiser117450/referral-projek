@@ -1,273 +1,143 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient, requireCashier } from '@/lib/supabase/server';
+import { executeQuery, executeTransaction } from '@/lib/turso';
 import { codeRedemptionSchema } from '@/lib/validation';
 import { verifyCodeHash } from '@/lib/utils';
+// TODO: Replace with next-auth session management
+// import { getServerSession } from "next-auth/next"
+// import { authOptions } from "app/api/auth/[...nextauth]/route"
 
-// POST /api/redeem/verify
+// POST /api/redeem
 export async function POST(request: NextRequest) {
   try {
-    const cashier = await requireCashier();
+    // TODO: Replace with next-auth session management for cashier
+    // const session = await getServerSession(authOptions);
+    // if (!session || session.user.role !== 'cashier') {
+    //   return NextResponse.json({ success: false, error: 'Cashier role required' }, { status: 403 });
+    // }
+    // const cashierId = session.user.id;
+    const cashierId = 'cashier-user-id'; // Hardcoded for now
+
     const body = await request.json();
-    
-    // Validate input
     const validatedData = codeRedemptionSchema.parse(body);
-    
-    const supabase = await createServerClient();
-    
-    // Start transaction - get all active codes
-    const { data: codes, error: codesError } = await supabase
-      .from('ephemeral_codes')
-      .select(`
-        *,
-        invite:invites(id, inviter_id, is_active),
-        referred_user:profiles(id, full_name)
-      `)
-      .eq('status', 'ACTIVE')
-      .gte('expires_at', new Date().toISOString());
-    
-    if (codesError) {
-      console.error('Error fetching codes:', codesError);
-      return NextResponse.json(
-        { success: false, error: 'Failed to validate code' },
-        { status: 500 }
-      );
-    }
-    
-    // Find matching code by comparing hash
+
+    const activeCodesResult = await executeQuery("SELECT * FROM ephemeral_codes WHERE status = 'ACTIVE' AND expires_at > CURRENT_TIMESTAMP");
+    const activeCodes = activeCodesResult.rows;
+
     let validCode = null;
-    for (const codeRecord of codes || []) {
-      const isValid = await verifyCodeHash(validatedData.code + codeRecord.salt, codeRecord.code_hash);
-      
+    for (const codeRecord of activeCodes) {
+      const isValid = await verifyCodeHash(validatedData.code, codeRecord.code_hash as string);
       if (isValid) {
-        validCode = codeRecord;
+        const inviteResult = await executeQuery('SELECT id, inviter_id, is_active FROM invites WHERE id = ?', [codeRecord.invite_id]);
+        const invite = inviteResult.rows[0];
+        validCode = { ...codeRecord, invite };
         break;
       }
     }
     
     if (!validCode) {
-      return NextResponse.json({
-        success: false,
-        error: 'Invalid or expired code',
-        data: { status: 'INVALID' },
-      });
+      return NextResponse.json({ success: false, error: 'Invalid or expired code', data: { status: 'INVALID' } });
     }
-    
-    // Check if code is already used
-    if (validCode.status === 'USED') {
-      return NextResponse.json({
-        success: false,
-        error: 'Code has already been used',
-        data: { status: 'USED' },
-      });
-    }
-    
-    // Check if invite is still active
+
     if (!validCode.invite?.is_active) {
-      return NextResponse.json({
-        success: false,
-        error: 'Referral link is no longer active',
-        data: { status: 'INACTIVE' },
-      });
+      return NextResponse.json({ success: false, error: 'Referral link is no longer active', data: { status: 'INACTIVE' } });
     }
-    
-    // Check if code is expired
-    if (new Date() > new Date(validCode.expires_at)) {
-      return NextResponse.json({
-        success: false,
-        error: 'Code has expired',
-        data: { status: 'EXPIRED' },
-      });
-    }
-    
-    // Use database function to award points and check milestones
-    const { data: pointsResult, error: pointsError } = await supabase
-      .rpc('award_points_and_check_milestones', {
-        p_user_id: validCode.invite.inviter_id,
-        p_points: 1
-      });
-    
-    if (pointsError) {
-      console.error('Error awarding points:', pointsError);
-      return NextResponse.json(
-        { success: false, error: 'Failed to award points' },
-        { status: 500 }
-      );
-    }
-    
-    // Mark code as used
-    const { error: updateError } = await supabase
-      .from('ephemeral_codes')
-      .update({
-        status: 'USED',
-        used_at: new Date().toISOString(),
-        used_by: cashier.id,
-      })
-      .eq('id', validCode.id);
-    
-    if (updateError) {
-      console.error('Error updating code status:', updateError);
-      return NextResponse.json(
-        { success: false, error: 'Failed to update code status' },
-        { status: 500 }
-      );
-    }
-    
-    // Create redemption record
-    const { data: redemption, error: redemptionError } = await supabase
-      .from('redemptions')
-      .insert({
+
+    const pointsToAward = 1;
+
+    const tx = await executeTransaction([
+      { sql: 'UPDATE profiles SET points = points + ? WHERE id = ?', args: [pointsToAward, validCode.invite.inviter_id] },
+      { sql: "UPDATE ephemeral_codes SET status = 'USED', used_at = CURRENT_TIMESTAMP, used_by = ? WHERE id = ?", args: [cashierId, validCode.id] },
+      { sql: 'INSERT INTO redemptions (code_id, inviter_id, referred_user_id, points_awarded, redeemed_by) VALUES (?, ?, ?, ?, ?)', args: [validCode.id, validCode.invite.inviter_id, validCode.referred_user_id, pointsToAward, cashierId] }
+    ]);
+
+    const redemptionId = tx[2].lastInsertRowid;
+
+    const receipt = {
+        redemption_id: redemptionId,
         code_id: validCode.id,
         inviter_id: validCode.invite.inviter_id,
         referred_user_id: validCode.referred_user_id,
-        points_awarded: 1,
-        redeemed_by: cashier.id,
-      })
-      .select()
-      .single();
-    
-    if (redemptionError) {
-      console.error('Error creating redemption:', redemptionError);
-      return NextResponse.json(
-        { success: false, error: 'Failed to create redemption record' },
-        { status: 500 }
-      );
-    }
-    
-    // Create receipt JSON for storage
-    const receipt = {
-      redemption_id: redemption.id,
-      code_id: validCode.id,
-      inviter_id: validCode.invite.inviter_id,
-      referred_user_id: validCode.referred_user_id,
-      points_awarded: 1,
-      redeemed_by: cashier.id,
-      redeemed_at: new Date().toISOString(),
-      code_generated_at: validCode.created_at,
-      code_expired_at: validCode.expires_at,
-      inviter_name: validCode.invite.inviter_id, // Will be resolved later
-      referred_user_name: validCode.referred_user.full_name,
-      cashier_name: cashier.id, // Will be resolved later
+        points_awarded: pointsToAward,
+        redeemed_by: cashierId,
+        redeemed_at: new Date().toISOString(),
     };
-    
-    // Store receipt in Supabase Storage
-    const { data: storageData, error: storageError } = await supabase.storage
-      .from('receipts')
-      .upload(`${redemption.id}.json`, JSON.stringify(receipt), {
-        contentType: 'application/json',
-        upsert: false,
-      });
-    
-    let receiptUrl = null;
-    if (!storageError && storageData) {
-      // Get public URL for the receipt
-      const { data: urlData } = supabase.storage
-        .from('receipts')
-        .getPublicUrl(`${redemption.id}.json`);
-      
-      receiptUrl = urlData.publicUrl;
-      
-      // Update redemption with receipt URL
-      await supabase
-        .from('redemptions')
-        .update({ receipt_url: receiptUrl })
-        .eq('id', redemption.id);
+
+    await executeQuery('UPDATE redemptions SET receipt = ? WHERE id = ?', [JSON.stringify(receipt), redemptionId]);
+
+    const inviterProfileResult = await executeQuery('SELECT full_name, points FROM profiles WHERE id = ?', [validCode.invite.inviter_id]);
+    const inviterProfile = inviterProfileResult.rows[0];
+
+    // Milestone check logic (replaces Supabase RPC)
+    const { rows: milestones } = await executeQuery("SELECT id, points_required FROM milestones WHERE is_active = 1 ORDER BY points_required ASC");
+    const { rows: userAwards } = await executeQuery("SELECT milestone_id FROM milestone_awards WHERE user_id = ?", [validCode.invite.inviter_id]);
+    const awardedMilestoneIds = userAwards.map(a => a.milestone_id);
+
+    const unlocked_milestones = [];
+    for (const milestone of milestones) {
+        if ((inviterProfile.points as number) >= (milestone.points_required as number) && !awardedMilestoneIds.includes(milestone.id)) {
+            await executeQuery("INSERT INTO milestone_awards (user_id, milestone_id, status) VALUES (?, ?, 'UNLOCKED')", [validCode.invite.inviter_id, milestone.id]);
+            unlocked_milestones.push(milestone);
+        }
     }
-    
-    // Get updated inviter profile
-    const { data: inviterProfile } = await supabase
-      .from('profiles')
-      .select('full_name, points')
-      .eq('id', validCode.invite.inviter_id)
-      .single();
-    
+
     return NextResponse.json({
       success: true,
       data: {
         status: 'SUCCESS',
-        redemption_id: redemption.id,
+        redemption_id: redemptionId,
         inviter_name: inviterProfile?.full_name || 'Unknown',
         inviter_points: inviterProfile?.points || 0,
-        referred_user_name: validCode.referred_user.full_name,
-        points_awarded: 1,
-        receipt_url: receiptUrl,
-        unlocked_milestones: pointsResult?.unlocked_milestones || [],
+        points_awarded: pointsToAward,
+        unlocked_milestones: unlocked_milestones,
       },
       message: 'Code redeemed successfully',
     });
-    
+
   } catch (error) {
     console.error('Error in redeem code:', error);
-    
     if (error instanceof Error) {
-      return NextResponse.json(
-        { success: false, error: error.message },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, error: error.message }, { status: 400 });
     }
-    
-    return NextResponse.json(
-      { success: false, error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
   }
 }
 
 // GET /api/redeem/history
 export async function GET(request: NextRequest) {
   try {
-    const cashier = await requireCashier();
-    const supabase = await createServerClient();
-    
-    // Get redemption history for this cashier
-    const { data: redemptions, error } = await supabase
-      .from('redemptions')
-      .select(`
-        *,
-        inviter:profiles!redemptions(inviter_id)(full_name),
-        referred_user:profiles!redemptions(referred_user_id)(full_name),
-        code:ephemeral_codes(created_at, expires_at)
-      `)
-      .eq('redeemed_by', cashier.id)
-      .order('created_at', { ascending: false });
-    
-    if (error) {
-      console.error('Error fetching redemptions:', error);
-      return NextResponse.json(
-        { success: false, error: 'Failed to fetch redemption history' },
-        { status: 500 }
-      );
-    }
-    
-    // Sanitize data
-    const sanitizedRedemptions = redemptions?.map(redemption => ({
-      id: redemption.id,
-      inviter_name: redemption.inviter?.full_name || 'Unknown',
-      referred_user_name: redemption.referred_user?.full_name || 'Unknown',
-      points_awarded: redemption.points_awarded,
-      redeemed_at: redemption.created_at,
-      code_generated_at: redemption.code?.created_at,
-      code_expired_at: redemption.code?.expires_at,
-      receipt_url: redemption.receipt_url,
-    })) || [];
-    
-    return NextResponse.json({
-      success: true,
-      data: sanitizedRedemptions,
-    });
-    
+    // TODO: Replace with next-auth session management for cashier
+    // const session = await getServerSession(authOptions);
+    // if (!session || session.user.role !== 'cashier') {
+    //   return NextResponse.json({ success: false, error: 'Cashier role required' }, { status: 403 });
+    // }
+    // const cashierId = session.user.id;
+    const cashierId = 'cashier-user-id'; // Hardcoded for now
+
+    const { rows: redemptions } = await executeQuery(`
+      SELECT
+        r.id,
+        inviter.full_name as inviter_name,
+        referred.full_name as referred_user_name,
+        r.points_awarded,
+        r.created_at as redeemed_at,
+        ec.created_at as code_generated_at,
+        ec.expires_at as code_expired_at,
+        r.receipt
+      FROM redemptions r
+      JOIN profiles inviter ON r.inviter_id = inviter.id
+      JOIN profiles referred ON r.referred_user_id = referred.id
+      JOIN ephemeral_codes ec ON r.code_id = ec.id
+      WHERE r.redeemed_by = ?
+      ORDER BY r.created_at DESC
+    `, [cashierId]);
+
+    return NextResponse.json({ success: true, data: redemptions });
+
   } catch (error) {
     console.error('Error in get redemption history:', error);
-    
     if (error instanceof Error) {
-      return NextResponse.json(
-        { success: false, error: error.message },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, error: error.message }, { status: 400 });
     }
-    
-    return NextResponse.json(
-      { success: false, error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
   }
 }
