@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClientWithRequest } from '@/lib/supabase/server';
+import { executeQuery } from '@/lib/turso';
 import { withRateLimit } from '@/lib/rate-limit';
+// TODO: Replace with next-auth session management
+// import { getServerSession } from "next-auth/next"
+// import { authOptions } from "app/api/auth/[...nextauth]/route"
 
 export async function GET(req: NextRequest) {
   // Apply rate limiting
@@ -8,121 +11,78 @@ export async function GET(req: NextRequest) {
     maxRequests: 30,
     windowMs: 60000 // 1 minute
   });
-  
+
   if (rateLimitResponse) {
     return rateLimitResponse;
   }
 
   try {
-    const supabase = createServerClientWithRequest(req);
-    
-    // Get current user
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    
-    if (userError || !user) {
-      console.error('Points API error:', userError || 'No user found');
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
-      );
-    }
-    
-    // Get user's current points and profile
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('points, created_at, updated_at')
-      .eq('id', user.id)
-      .single();
+    // TODO: Replace with next-auth session management
+    // const session = await getServerSession(authOptions)
+    // if (!session) {
+    //   return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    // }
+    // const userId = session.user.id;
+    const userId = '123e4567-e89b-12d3-a456-426614174000'; // Hardcoded for now
 
-    if (profileError) {
-      console.error('Error fetching profile:', profileError);
-      return NextResponse.json(
-        { error: 'Failed to fetch profile' },
-        { status: 500 }
-      );
+    // Get user's current points and profile
+    const profileResult = await executeQuery('SELECT points, created_at, updated_at FROM profiles WHERE id = ?', [userId]);
+    const profile = profileResult.rows[0];
+
+    if (!profile) {
+      return NextResponse.json({ error: 'Failed to fetch profile' }, { status: 500 });
     }
 
     // Get points history from redemptions
-    const { data: redemptions, error: redemptionsError } = await supabase
-      .from('redemptions')
-      .select(`
-        points_awarded,
-        created_at,
-        status,
-        ephemeral_codes!inner(
-          referrals!inner(
-            invites!inner(
-              title,
-              description
-            )
-          )
-        )
-      `)
-      .eq('ephemeral_codes.user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(50);
-
-    if (redemptionsError) {
-      console.error('Error fetching redemptions:', redemptionsError);
-      return NextResponse.json(
-        { error: 'Failed to fetch points history' },
-        { status: 500 }
-      );
-    }
+    const redemptionsResult = await executeQuery(`
+      SELECT
+        r.points_awarded,
+        r.created_at,
+        r.status,
+        i.title as invite_title
+      FROM redemptions r
+      JOIN ephemeral_codes ec ON r.code_id = ec.id
+      JOIN referrals ref ON ec.referral_id = ref.id
+      JOIN invites i ON ref.invite_id = i.id
+      WHERE ec.user_id = ?
+      ORDER BY r.created_at DESC
+      LIMIT 50
+    `, [userId]);
+    const redemptions = redemptionsResult.rows;
 
     // Get milestone progress
-    const { data: milestones, error: milestonesError } = await supabase
-      .from('milestones')
-      .select(`
+    const milestonesResult = await executeQuery(`
+      SELECT
         id,
         name,
         description,
         points_required,
         reward_description,
         is_active
-      `)
-      .eq('is_active', true)
-      .order('points_required', { ascending: true });
-
-    if (milestonesError) {
-      console.error('Error fetching milestones:', milestonesError);
-      return NextResponse.json(
-        { error: 'Failed to fetch milestones' },
-        { status: 500 }
-      );
-    }
+      FROM milestones
+      WHERE is_active = 1
+      ORDER BY points_required ASC
+    `);
+    const milestones = milestonesResult.rows;
 
     // Get user's milestone awards
-    const { data: awards, error: awardsError } = await supabase
-      .from('milestone_awards')
-      .select(`
+    const awardsResult = await executeQuery(`
+      SELECT
         milestone_id,
         status,
-        unlocked_at,
-        milestones!inner(
-          name,
-          description,
-          points_required,
-          reward_description
-        )
-      `)
-      .eq('user_id', user.id)
-      .order('unlocked_at', { ascending: false });
-
-    if (awardsError) {
-      console.error('Error fetching awards:', awardsError);
-      return NextResponse.json(
-        { error: 'Failed to fetch milestone awards' },
-        { status: 500 }
-      );
-    }
+        unlocked_at
+      FROM milestone_awards
+      WHERE user_id = ?
+      ORDER BY unlocked_at DESC
+    `, [userId]);
+    const awards = awardsResult.rows;
 
     // Calculate milestone progress
     const milestoneProgress = milestones.map(milestone => {
       const award = awards.find(a => a.milestone_id === milestone.id);
       const isUnlocked = award?.status === 'UNLOCKED';
       const progress = Math.min((profile.points / milestone.points_required) * 100, 100);
-      
+
       return {
         id: milestone.id,
         name: milestone.name,
@@ -142,7 +102,7 @@ export async function GET(req: NextRequest) {
       .sort((a, b) => a.points_required - b.points_required)[0];
 
     // Calculate points needed for next milestone
-    const pointsToNext = nextMilestone 
+    const pointsToNext = nextMilestone
       ? Math.max(0, nextMilestone.points_required - profile.points)
       : 0;
 
@@ -155,7 +115,7 @@ export async function GET(req: NextRequest) {
           points: r.points_awarded,
           date: r.created_at,
           status: r.status,
-          invite_title: r.ephemeral_codes?.referrals?.invites?.title || 'Unknown'
+          invite_title: r.invite_title || 'Unknown'
         })),
         milestone_progress: milestoneProgress,
         next_milestone: nextMilestone ? {
