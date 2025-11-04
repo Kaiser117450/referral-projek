@@ -2,20 +2,24 @@ import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery, executeTransaction } from '@/lib/turso';
 import { codeRedemptionSchema } from '@/lib/validation';
 import { verifyCodeHash } from '@/lib/utils';
-// TODO: Replace with next-auth session management
-// import { getServerSession } from "next-auth/next"
-// import { authOptions } from "app/api/auth/[...nextauth]/route"
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "../auth/[...nextauth]/route";
+import { storeReceipt } from '@/lib/storage';
 
 // POST /api/redeem
 export async function POST(request: NextRequest) {
   try {
-    // TODO: Replace with next-auth session management for cashier
-    // const session = await getServerSession(authOptions);
-    // if (!session || session.user.role !== 'cashier') {
-    //   return NextResponse.json({ success: false, error: 'Cashier role required' }, { status: 403 });
-    // }
-    // const cashierId = session.user.id;
-    const cashierId = 'cashier-user-id'; // Hardcoded for now
+    // Authentication and role check for cashier
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    }
+    
+    if (session.user.role !== 'cashier' && session.user.role !== 'admin') {
+      return NextResponse.json({ success: false, error: 'Cashier or admin role required' }, { status: 403 });
+    }
+    
+    const cashierId = session.user.id;
 
     const body = await request.json();
     const validatedData = codeRedemptionSchema.parse(body);
@@ -53,7 +57,7 @@ export async function POST(request: NextRequest) {
     const redemptionId = tx[2].lastInsertRowid;
 
     const receipt = {
-        redemption_id: redemptionId,
+        redemption_id: redemptionId.toString(),
         code_id: validCode.id,
         inviter_id: validCode.invite.inviter_id,
         referred_user_id: validCode.referred_user_id,
@@ -62,7 +66,9 @@ export async function POST(request: NextRequest) {
         redeemed_at: new Date().toISOString(),
     };
 
-    await executeQuery('UPDATE redemptions SET receipt = ? WHERE id = ?', [JSON.stringify(receipt), redemptionId]);
+    // Store receipt as file and update database with filename
+    const receiptFilename = await storeReceipt(receipt);
+    await executeQuery('UPDATE redemptions SET receipt = ? WHERE id = ?', [receiptFilename, redemptionId]);
 
     const inviterProfileResult = await executeQuery('SELECT full_name, points FROM profiles WHERE id = ?', [validCode.invite.inviter_id]);
     const inviterProfile = inviterProfileResult.rows[0];
@@ -105,13 +111,17 @@ export async function POST(request: NextRequest) {
 // GET /api/redeem/history
 export async function GET(request: NextRequest) {
   try {
-    // TODO: Replace with next-auth session management for cashier
-    // const session = await getServerSession(authOptions);
-    // if (!session || session.user.role !== 'cashier') {
-    //   return NextResponse.json({ success: false, error: 'Cashier role required' }, { status: 403 });
-    // }
-    // const cashierId = session.user.id;
-    const cashierId = 'cashier-user-id'; // Hardcoded for now
+    // Authentication and role check for cashier
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    }
+    
+    if (session.user.role !== 'cashier' && session.user.role !== 'admin') {
+      return NextResponse.json({ success: false, error: 'Cashier or admin role required' }, { status: 403 });
+    }
+    
+    const cashierId = session.user.id;
 
     const { rows: redemptions } = await executeQuery(`
       SELECT

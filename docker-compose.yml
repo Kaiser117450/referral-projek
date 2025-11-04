@@ -1,26 +1,97 @@
-# docker-compose.yml
+# F&B Referral System - Docker Compose Configuration
 version: '3.8'
 
 services:
-  next-app:
+  referral-app:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        TURSO_DATABASE_URL: ${TURSO_DATABASE_URL}
-        TURSO_AUTH_TOKEN: ${TURSO_AUTH_TOKEN}
-        NEXTAUTH_URL: ${NEXTAUTH_URL}
-        NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
-        EMAIL_SERVER: ${EMAIL_SERVER}
-        EMAIL_FROM: ${EMAIL_FROM}
+    container_name: fnb-referral-system
     ports:
       - '3000:3000'
     environment:
-      - NODE_ENV=production
+      # Database Configuration
       - TURSO_DATABASE_URL=${TURSO_DATABASE_URL}
       - TURSO_AUTH_TOKEN=${TURSO_AUTH_TOKEN}
+      
+      # NextAuth.js Configuration
       - NEXTAUTH_URL=${NEXTAUTH_URL}
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+      
+      # Email Configuration
       - EMAIL_SERVER=${EMAIL_SERVER}
       - EMAIL_FROM=${EMAIL_FROM}
+      
+      # App Configuration
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
+      - NODE_ENV=production
+      
+      # Security
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      
+      # Rate Limiting
+      - RATE_LIMIT_MAX_REQUESTS=${RATE_LIMIT_MAX_REQUESTS:-100}
+      - RATE_LIMIT_WINDOW_MS=${RATE_LIMIT_WINDOW_MS:-900000}
+      
+      # Code Generation
+      - CODE_LENGTH=${CODE_LENGTH:-8}
+      - CODE_EXPIRY_MINUTES=${CODE_EXPIRY_MINUTES:-5}
+      
+      # F&B Specific
+      - RESTAURANT_NAME=${RESTAURANT_NAME:-"Your Restaurant"}
+      - RESTAURANT_LOGO_URL=${RESTAURANT_LOGO_URL:-"/logo.png"}
+      - POINTS_PER_REFERRAL=${POINTS_PER_REFERRAL:-1}
+      - MAX_CODES_PER_USER_PER_DAY=${MAX_CODES_PER_USER_PER_DAY:-5}
+      
+      # Storage
+      - STORAGE_DIR=/app/storage
+    
+    volumes:
+      # Persist receipt storage
+      - receipt-storage:/app/storage/receipts
+      
     restart: unless-stopped
+    
+    healthcheck:
+      test: ["CMD", "./healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    # Resource limits for production
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+    
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  receipt-storage:
+    driver: local
+
+# Optional: Add a reverse proxy for SSL termination
+# Uncomment the following if you want to use Nginx as a reverse proxy
+#
+# nginx:
+#   image: nginx:alpine
+#   container_name: fnb-referral-nginx
+#   ports:
+#     - '80:80'
+#     - '443:443'
+#   volumes:
+#     - ./nginx.conf:/etc/nginx/nginx.conf:ro
+#     - ./ssl:/etc/nginx/ssl:ro
+#   depends_on:
+#     - referral-app
+#   restart: unless-stopped

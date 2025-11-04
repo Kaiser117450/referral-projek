@@ -20,16 +20,11 @@
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.0",
     "@hookform/resolvers": "^3.3.2",
-    "@supabase/auth-helpers-nextjs": "^0.8.7",
-    "@supabase/auth-ui-react": "^0.4.6",
-    "@supabase/auth-ui-shared": "^0.1.8",
-    "@supabase/ssr": "^0.0.10",
-    "@supabase/supabase-js": "^2.38.5",
+    "@libsql/client": "^0.14.0",
     "@tailwindcss/forms": "^0.5.10",
     "@tailwindcss/typography": "^0.5.16",
     "bcryptjs": "^2.4.3",
     "clsx": "^2.0.0",
-    "crypto": "^1.0.1",
     "date-fns": "^2.30.0",
     "dotenv": "^17.2.1",
     "drizzle-orm": "^0.44.7",
@@ -77,9 +72,13 @@
     "referral",
     "redemption",
     "nextjs",
-    "supabase",
+    "turso",
+    "libsql",
+    "nextauth",
     "typescript",
-    "tailwind"
+    "tailwind",
+    "f&b",
+    "restaurant"
   ],
   "author": "Your Name",
   "license": "MIT"

@@ -1,245 +1,202 @@
 'use client';
 
-import { useState } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { useState, useEffect } from 'react';
+import { signIn, getSession } from 'next-auth/react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { toast } from 'react-hot-toast';
+import { Mail, ArrowRight, AlertCircle, CheckCircle, Utensils } from 'lucide-react';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
-  const [otp, setOtp] = useState('');
-  const [showOtp, setShowOtp] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState('');
-  const [messageType, setMessageType] = useState<'success' | 'error'>('success');
-  
-  const supabase = createClientComponentClient();
+  const [emailSent, setEmailSent] = useState(false);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const error = searchParams.get('error');
 
-  const handleSendOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setMessage('');
-
-    try {
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        },
-      });
-
-      if (error) {
-        setMessage(error.message);
-        setMessageType('error');
-      } else {
-        setMessage('OTP telah dikirim ke email Anda!');
-        setMessageType('success');
-        setShowOtp(true);
+  useEffect(() => {
+    // Check if user is already logged in
+    const checkSession = async () => {
+      const session = await getSession();
+      if (session) {
+        router.push('/dashboard');
       }
-    } catch (error) {
-      setMessage('Terjadi kesalahan. Silakan coba lagi.');
-      setMessageType('error');
-    } finally {
-      setLoading(false);
+    };
+    checkSession();
+
+    // Handle error messages
+    if (error) {
+      switch (error) {
+        case 'insufficient_permissions':
+          toast.error('You do not have permission to access that page');
+          break;
+        case 'Signin':
+          toast.error('Sign in failed. Please try again.');
+          break;
+        default:
+          toast.error('An error occurred during sign in');
+      }
     }
-  };
+  }, [router, error]);
 
-  const handleVerifyOtp = async (e: React.FormEvent) => {
+  const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setMessage('');
-
-    try {
-      const { error } = await supabase.auth.verifyOtp({
-        email,
-        token: otp,
-        type: 'email',
-      });
-
-      if (error) {
-        setMessage(error.message);
-        setMessageType('error');
-      } else {
-        setMessage('Login berhasil! Redirecting...');
-        setMessageType('success');
-        // Redirect to dashboard after successful login
-        setTimeout(() => {
-          window.location.href = '/dashboard';
-        }, 1000);
-      }
-    } catch (error) {
-      setMessage('Terjadi kesalahan. Silakan coba lagi.');
-      setMessageType('error');
-    } finally {
-      setLoading(false);
+    if (!email) {
+      toast.error('Please enter your email address');
+      return;
     }
-  };
 
-  const handleOAuthLogin = async (provider: 'google' | 'github') => {
     setLoading(true);
-    setMessage('');
-
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider,
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-        },
+      const result = await signIn('email', {
+        email,
+        redirect: false,
+        callbackUrl: '/dashboard'
       });
 
-      if (error) {
-        setMessage(error.message);
-        setMessageType('error');
+      if (result?.error) {
+        toast.error('Failed to send sign-in email. Please try again.');
+      } else {
+        setEmailSent(true);
+        toast.success('Check your email for the sign-in link!');
       }
     } catch (error) {
-      setMessage('Terjadi kesalahan. Silakan coba lagi.');
-      setMessageType('error');
+      toast.error('An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-red-50 to-red-100 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <div className="p-8">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Welcome Back
-            </h1>
-            <p className="text-gray-600">
-              Login ke Referral System Anda
-            </p>
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50 flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        {/* Restaurant Branding */}
+        <div className="text-center mb-8">
+          <div className="bg-gradient-to-r from-orange-500 to-red-500 p-4 rounded-full w-20 h-20 mx-auto mb-4 flex items-center justify-center">
+            <Utensils className="h-10 w-10 text-white" />
           </div>
-
-          {message && (
-            <div className={`mb-4 p-3 rounded-lg text-sm ${
-              messageType === 'success' 
-                ? 'bg-green-100 text-green-700 border border-green-200' 
-                : 'bg-red-100 text-red-700 border border-red-200'
-            }`}>
-              {message}
-            </div>
-          )}
-
-          {!showOtp ? (
-            <form onSubmit={handleSendOtp} className="space-y-4">
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                  Email Address
-                </label>
-                <input
-                  type="email"
-                  id="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                  placeholder="Enter your email"
-                  required
-                />
-              </div>
-
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={loading}
-              >
-                {loading ? 'Sending OTP...' : 'Send OTP'}
-              </Button>
-            </form>
-          ) : (
-            <form onSubmit={handleVerifyOtp} className="space-y-4">
-              <div>
-                <label htmlFor="otp" className="block text-sm font-medium text-gray-700 mb-2">
-                  Enter OTP
-                </label>
-                <input
-                  type="text"
-                  id="otp"
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                  placeholder="Enter 6-digit OTP"
-                  maxLength={6}
-                  required
-                />
-              </div>
-
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={loading}
-              >
-                {loading ? 'Verifying...' : 'Verify OTP'}
-              </Button>
-
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full"
-                onClick={() => {
-                  setShowOtp(false);
-                  setOtp('');
-                  setMessage('');
-                }}
-              >
-                Back to Email
-              </Button>
-            </form>
-          )}
-
-          <div className="mt-6">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">Or continue with</span>
-              </div>
-            </div>
-
-            <div className="mt-6 grid grid-cols-2 gap-3">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => handleOAuthLogin('google')}
-                disabled={loading}
-                className="flex items-center justify-center"
-              >
-                <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
-                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                </svg>
-                Google
-              </Button>
-
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => handleOAuthLogin('github')}
-                disabled={loading}
-                className="flex items-center justify-center"
-              >
-                <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
-                </svg>
-                GitHub
-              </Button>
-            </div>
-          </div>
-
-          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
-              Belum punya akun?{' '}
-              <a href="/register" className="font-medium text-red-600 hover:text-red-500">
-                Daftar disini
-              </a>
-            </p>
-          </div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            Welcome Back
+          </h1>
+          <p className="text-gray-600">
+            Sign in to your F&B Referral Account
+          </p>
         </div>
-      </Card>
+
+        <Card className="shadow-xl">
+          <div className="p-8">
+            {!emailSent ? (
+              <form onSubmit={handleEmailSignIn} className="space-y-6">
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                    Email Address
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                    <input
+                      type="email"
+                      id="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
+                      placeholder="Enter your email address"
+                      required
+                      disabled={loading}
+                    />
+                  </div>
+                </div>
+
+                <Button
+                  type="submit"
+                  className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 py-3 text-lg"
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                      Sending Sign-in Link...
+                    </>
+                  ) : (
+                    <>
+                      Send Sign-in Link
+                      <ArrowRight className="ml-2 h-5 w-5" />
+                    </>
+                  )}
+                </Button>
+              </form>
+            ) : (
+              <div className="text-center space-y-6">
+                <div className="bg-green-50 border border-green-200 rounded-lg p-6">
+                  <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-green-800 mb-2">
+                    Check Your Email!
+                  </h3>
+                  <p className="text-green-700 text-sm">
+                    We've sent a sign-in link to <strong>{email}</strong>
+                  </p>
+                  <p className="text-green-600 text-sm mt-2">
+                    Click the link in your email to sign in to your account.
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => {
+                      setEmailSent(false);
+                      setEmail('');
+                    }}
+                  >
+                    Use Different Email
+                  </Button>
+                  
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="w-full text-sm"
+                    onClick={() => handleEmailSignIn({ preventDefault: () => {} } as React.FormEvent)}
+                    disabled={loading}
+                  >
+                    Resend Email
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Help Section */}
+            <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-start space-x-3">
+                <AlertCircle className="h-5 w-5 text-blue-500 mt-0.5 flex-shrink-0" />
+                <div className="text-sm text-blue-800">
+                  <p className="font-medium mb-1">First time here?</p>
+                  <p>Just enter your email above. If you don't have an account yet, we'll create one for you automatically when you click the sign-in link.</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="mt-6 text-center">
+              <p className="text-xs text-gray-500">
+                By signing in, you agree to our terms of service and privacy policy.
+              </p>
+            </div>
+          </div>
+        </Card>
+
+        {/* Additional Help */}
+        <div className="mt-6 text-center">
+          <p className="text-sm text-gray-600">
+            Need help?{' '}
+            <a href="mailto:support@yourrestaurant.com" className="font-medium text-orange-600 hover:text-orange-500">
+              Contact Support
+            </a>
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

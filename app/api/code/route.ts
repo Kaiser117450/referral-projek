@@ -2,20 +2,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery, executeTransaction } from '@/lib/turso';
 import { generateCodeSchema } from '@/lib/validation';
 import { generateRandomCode, hashCode, generateSalt, calculateExpiryTime } from '@/lib/utils';
-// TODO: Replace with next-auth session management
-// import { getServerSession } from "next-auth/next"
-// import { authOptions } from "app/api/auth/[...nextauth]/route"
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "../auth/[...nextauth]/route";
 
 // POST /api/code
 export async function POST(request: NextRequest) {
   try {
-    // TODO: Replace with next-auth session management
-    // const session = await getServerSession(authOptions)
-    // if (!session) {
-    //   return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
-    // }
-    // const userId = session.user.id;
-    const userId = '123e4567-e89b-12d3-a456-426614174000'; // Hardcoded for now
+    // Authentication check
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    }
+    const userId = session.user.id;
 
     const body = await request.json();
 

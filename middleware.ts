@@ -1,58 +1,84 @@
-import { createServerClient } from '@supabase/ssr';
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { withAuth } from "next-auth/middleware";
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
-export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({
-    request: {
-      headers: request.headers,
-    },
-  });
+export default withAuth(
+  function middleware(request) {
+    const token = request.nextauth.token;
+    const { pathname } = request.nextUrl;
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value));
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          });
-          cookiesToSet.forEach(({ name, value, options }) => {
-            response.cookies.set(name, value, options);
-          });
-        },
-      },
+    // Allow access to auth pages without authentication
+    if (pathname.startsWith('/login') || pathname.startsWith('/register') || pathname.startsWith('/auth/')) {
+      return NextResponse.next();
     }
-  );
 
-  // Refresh session if expired - required for Server Components
-  const { data: { session } } = await supabase.auth.getSession();
+    // Protect admin routes
+    if (pathname.startsWith('/admin')) {
+      if (token?.role !== 'admin') {
+        return NextResponse.redirect(new URL('/login?error=insufficient_permissions', request.url));
+      }
+    }
 
-  // Optional: Add user info to headers for server components
-  if (session?.user) {
-    response.headers.set('x-user-id', session.user.id);
-    response.headers.set('x-user-email', session.user.email || '');
+    // Protect cashier routes
+    if (pathname.startsWith('/cashier')) {
+      if (token?.role !== 'cashier' && token?.role !== 'admin') {
+        return NextResponse.redirect(new URL('/login?error=insufficient_permissions', request.url));
+      }
+    }
+
+    // Protect dashboard routes (require any authenticated user)
+    if (pathname.startsWith('/dashboard')) {
+      if (!token) {
+        return NextResponse.redirect(new URL('/login', request.url));
+      }
+    }
+
+    // Add user info to headers for server components
+    const response = NextResponse.next();
+    if (token) {
+      response.headers.set('x-user-id', token.sub || '');
+      response.headers.set('x-user-email', token.email || '');
+      response.headers.set('x-user-role', token.role || 'user');
+    }
+
+    return response;
+  },
+  {
+    callbacks: {
+      authorized: ({ token, req }) => {
+        const { pathname } = req.nextUrl;
+        
+        // Allow public routes
+        if (
+          pathname === '/' ||
+          pathname.startsWith('/login') ||
+          pathname.startsWith('/register') ||
+          pathname.startsWith('/auth/') ||
+          pathname.startsWith('/api/auth/') ||
+          pathname.startsWith('/_next/') ||
+          pathname.startsWith('/favicon.ico') ||
+          pathname.startsWith('/public/')
+        ) {
+          return true;
+        }
+
+        // Require authentication for all other routes
+        return !!token;
+      },
+    },
   }
-
-  return response;
-}
+);
 
 export const config = {
   matcher: [
     /*
      * Match all request paths except for the ones starting with:
+     * - api/auth (NextAuth.js routes)
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - public folder
      */
-    '/((?!_next/static|_next/image|favicon.ico|public).*)',
+    '/((?!api/auth|_next/static|_next/image|favicon.ico|public).*)',
   ],
 };

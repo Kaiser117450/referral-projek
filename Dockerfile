@@ -1,54 +1,67 @@
-# Dockerfile
-# Stage 1: Build the Next.js app
-FROM node:18-alpine AS builder
+# F&B Referral System - Production Dockerfile
+FROM node:18-alpine AS base
 
-# Set working directory
+# Install dependencies only when needed
+FROM base AS deps
+RUN apk add --no-cache libc6-compat
 WORKDIR /app
-
-# Copy package.json and package-lock.json
-COPY package*.json ./
 
 # Install dependencies
-RUN npm install
+COPY package.json package-lock.json* ./
+RUN npm ci --only=production
 
-# Copy the rest of the app
+# Rebuild the source code only when needed
+FROM base AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Set build-time arguments
-ARG TURSO_DATABASE_URL
-ARG TURSO_AUTH_TOKEN
-ARG NEXTAUTH_URL
-ARG NEXTAUTH_SECRET
-ARG EMAIL_SERVER
-ARG EMAIL_FROM
+# Create storage directory for receipts
+RUN mkdir -p storage/receipts
 
-# Set environment variables
-ENV TURSO_DATABASE_URL=$TURSO_DATABASE_URL
-ENV TURSO_AUTH_TOKEN=$TURSO_AUTH_TOKEN
-ENV NEXTAUTH_URL=$NEXTAUTH_URL
-ENV NEXTAUTH_SECRET=$NEXTAUTH_SECRET
-ENV EMAIL_SERVER=$EMAIL_SERVER
-ENV EMAIL_FROM=$EMAIL_FROM
+# Disable telemetry during build
+ENV NEXT_TELEMETRY_DISABLED 1
 
-# Build the app
+# Build the application
 RUN npm run build
 
-# Stage 2: Production image
-FROM node:18-alpine
-
-# Set working directory
+# Production image, copy all the files and run next
+FROM base AS runner
 WORKDIR /app
 
-# Copy the build output from the builder stage
-COPY --from=builder /app/.next ./.next
+ENV NODE_ENV production
+ENV NEXT_TELEMETRY_DISABLED 1
+
+# Create system user for security
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
+# Create storage directory with proper permissions
+RUN mkdir -p storage/receipts
+RUN chown -R nextjs:nodejs storage
+
+# Copy built application
 COPY --from=builder /app/public ./public
-COPY --from=builder /app/package.json .
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
 
-# Install production dependencies
-RUN npm install --production
+# Copy storage directory
+COPY --from=builder --chown=nextjs:nodejs /app/storage ./storage
 
-# Expose the port the app runs on
+# Create health check script
+RUN echo '#!/bin/sh\ncurl -f http://localhost:3000/api/health || exit 1' > healthcheck.sh
+RUN chmod +x healthcheck.sh
+
+USER nextjs
+
 EXPOSE 3000
 
-# Start the app
-CMD ["npm", "start"]
+ENV PORT 3000
+ENV HOSTNAME "0.0.0.0"
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD ./healthcheck.sh
+
+# Start the application
+CMD ["node", "server.js"]
